@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "md5": "^2.3.0",
+    "react-router-dom": "^7.12.0"
+  }
+}

@@ -1,0 +1,299 @@
+
+import React, { useEffect, useRef, useState } from "react";
+import ImageCropModal from "./ImageCropModal";
+import { useNavigate, useLocation } from "react-router-dom";
+import "../App.css";
+import logo from "../assets/logo.png";
+import axios from "axios";
+import { LayoutDashboard, Users, Settings, LogOut } from "lucide-react";
+
+
+function Navbar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const popupRef = useRef(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  // Always use user.profile_image for display, keep in sync with localStorage
+  const [cropModalImg, setCropModalImg] = useState(null);
+
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch {
+      return null;
+    }
+  });
+
+  const closeMobileMenu = () => setMobileOpen(false);
+  const toggleMobileMenu = () => setMobileOpen((open) => !open);
+
+  const getUserDisplayName = (user) => {
+    if (!user) return "User";
+    if (user.first_name && user.last_name)
+      return `${user.first_name} ${user.last_name}`;
+    if (user.first_name) return user.first_name;
+    if (user.last_name) return user.last_name;
+    if (user.email) return user.email.split("@")[0];
+    return "User";
+  };
+
+  const userDisplayName = getUserDisplayName(user);
+  const userInitial = userDisplayName ? userDisplayName[0].toUpperCase() : "U";
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    setShowProfile(false);
+    navigate("/");
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (popupRef.current && !popupRef.current.contains(e.target)) {
+        setShowProfile(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const scrollToAbout = () => {
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(() => {
+        const aboutSection = document.getElementById("about");
+        aboutSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 250);
+      return;
+    }
+
+    const aboutSection = document.getElementById("about");
+    aboutSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  return (
+    <nav className="navbar">
+      <div className="navbar-inner">
+        <div className="navbar-left">
+          <img
+            src={logo}
+            alt="APIS Logo"
+            className="navbar-logo"
+          />
+
+          <div className="navbar-brand">
+            <div className="navbar-brand-title">
+              <h2>APIS</h2>
+              <span>| AI Powered Interview System</span>
+            </div>
+          </div>
+        </div>
+
+        <div className={`navbar-center ${mobileOpen ? "mobile-open" : ""}`}>
+          <div className="nav-links">
+            <button
+              className={`nav-link ${location.pathname === "/" ? "active" : ""}`}
+              onClick={() => {
+                navigate("/");
+                closeMobileMenu();
+              }}
+            >
+              Home
+            </button>
+            <span className="nav-separator">|</span>
+            <button
+              className={`nav-link ${location.pathname === "/hr-interview" ? "active" : ""}`}
+              onClick={() => {
+                navigate("/hr-interview");
+                closeMobileMenu();
+              }}
+            >
+              Practice
+            </button>
+            <span className="nav-separator">|</span>
+            <button
+              className={`nav-link ${location.pathname === "/dashboard" ? "active" : ""}`}
+              onClick={() => {
+                navigate("/dashboard");
+                closeMobileMenu();
+              }}
+            >
+              Dashboard
+            </button>
+            <span className="nav-separator">|</span>
+            <button
+              className={`nav-link ${location.pathname === "/resume-interview" ? "active" : ""}`}
+              onClick={() => {
+                navigate("/resume-interview");
+                closeMobileMenu();
+              }}
+            >
+              Resume Analyzer
+            </button>
+            <span className="nav-separator">|</span>
+            <button
+              className={`nav-link ${location.pathname === "/about" ? "active" : ""}`}
+              onClick={() => {
+                navigate("/about");
+                closeMobileMenu();
+              }}
+            >
+              About us
+            </button>
+          </div>
+        </div>
+
+        <div className="nav-right">
+          <button
+            className={`navbar-toggle ${mobileOpen ? "open" : ""}`}
+            onClick={toggleMobileMenu}
+            aria-label="Toggle navigation"
+            aria-expanded={mobileOpen}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          {!user ? (
+            <button onClick={() => navigate("/auth")}>Sign In / Sign Up</button>
+          ) : (
+            <div className="profile-area" ref={popupRef}>
+              <div
+                className="profile-icon"
+                onClick={() => setShowProfile((prev) => !prev)}
+              >
+                {user?.profile_image ? (
+                  <img src={user.profile_image} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  userInitial
+                )}
+              </div>
+
+              <span className="username">{userDisplayName} ▼</span>
+
+              {showProfile && (
+                <div className="profile-popup pro-popup-ui">
+                  <div className="profile-popup-top">
+                    <div className="profile-img-edit">
+                      <div className="profile-img-circle" style={{ position: 'relative' }}>
+                        {user?.profile_image ? (
+                          <img src={user.profile_image} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <span className="profile-img-initial">{userInitial}</span>
+                        )}
+                        <span
+                          className="profile-img-edit-icon"
+                          title="Edit Photo"
+                          onClick={e => {
+                            e.stopPropagation();
+                            document.getElementById('profile-img-input').click();
+                          }}
+                        >
+                          ✏️
+                        </span>
+                        <input
+                          id="profile-img-input"
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = ev => setCropModalImg(ev.target.result);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+
+                        {cropModalImg && (
+                          <ImageCropModal
+                            image={cropModalImg}
+                            onClose={() => setCropModalImg(null)}
+                            onSave={async (img) => {
+                              try {
+                                setCropModalImg(null);
+                                // Send to backend
+                                const token = localStorage.getItem("token");
+                                const payload = { profile_image: img };
+                                const res = await axios.put(
+                                  "http://127.0.0.1:8000/profile",
+                                  payload,
+                                  {
+                                    headers: {
+                                      Authorization: "Bearer " + token
+                                    }
+                                  }
+                                );
+                                // Update user in localStorage
+                                const existingUser = JSON.parse(localStorage.getItem("user"));
+                                localStorage.setItem(
+                                  "user",
+                                  JSON.stringify({
+                                    ...existingUser,
+                                    ...res.data.user
+                                  })
+                                );
+                                setUser(prev => ({ ...prev, ...res.data.user }));
+                              } catch (err) {
+                                alert(err.response?.data?.detail || "Profile image update failed");
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <div className="profile-popup-username">{userDisplayName}</div>
+                    <div className="profile-popup-email">{user?.email}</div>
+                  </div>
+                  <div className="profile-popup-links">
+                    <button className="profile-popup-link profile-popup-link-row" onClick={() => navigate('/dashboard')}>
+                      <span className="profile-popup-link-icon"><LayoutDashboard size={28} color="#111" style={{marginRight:12}} /></span>
+                      <span className="profile-popup-link-text">My Dashboard</span>
+                    </button>
+                    <button className="profile-popup-link profile-popup-link-row" onClick={() => setShowProfile('interviews')}>
+                      <span className="profile-popup-link-icon"><Users size={28} color="#111" style={{marginRight:12}} /></span>
+                      <span className="profile-popup-link-text">My Interviews</span>
+                    </button>
+                    <button className="profile-popup-link profile-popup-link-row" onClick={() => setShowProfile('settings')}>
+                      <span className="profile-popup-link-icon"><Settings size={28} color="#111" style={{marginRight:12}} /></span>
+                      <span className="profile-popup-link-text">Settings</span>
+                    </button>
+                  </div>
+                  {showProfile === 'interviews' && (
+                    <div className="profile-popup-section">
+                      <div className="profile-popup-section-title">My Interviews</div>
+                      <div className="profile-popup-interviews-list">
+                        {/* Placeholder for past interviews */}
+                        <div className="profile-popup-interview-item">No interviews found.</div>
+                      </div>
+                    </div>
+                  )}
+                  {showProfile === 'settings' && (
+                    <div className="profile-popup-section">
+                      <div className="profile-popup-section-title">Settings</div>
+                      <button className="edit-profile-btn" onClick={() => navigate('/profile')}>
+                        Edit Profile
+                      </button>
+                    </div>
+                  )}
+                  <button className="logout-btn profile-popup-link-row" onClick={handleLogout}>
+                    <span className="profile-popup-link-icon"><LogOut size={28} color="#111" style={{marginRight:12}} /></span>
+                    <span className="profile-popup-link-text">Logout</span>
+                  </button>
+
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+export default Navbar;
