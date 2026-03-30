@@ -162,18 +162,24 @@ function Navbar() {
             <button onClick={() => navigate("/auth")}>Sign In / Sign Up</button>
           ) : (
             <div className="profile-area" ref={popupRef}>
-              <div
-                className="profile-icon"
+              <button
+                type="button"
+                className="profile-card"
                 onClick={() => setShowProfile((prev) => !prev)}
               >
-                {user?.profile_image ? (
-                  <img src={user.profile_image} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                ) : (
-                  userInitial
-                )}
-              </div>
+                <div className="profile-icon">
+                  {user?.profile_image ? (
+                    <img src={user.profile_image} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    userInitial
+                  )}
+                </div>
 
-              <span className="username">{userDisplayName} ▼</span>
+                <div className="profile-user-details">
+                  <span className="profile-user-name">{userDisplayName}</span>
+                  <span className="profile-user-email">{user?.email}</span>
+                </div>
+              </button>
 
               {showProfile && (
                 <div className="profile-popup pro-popup-ui">

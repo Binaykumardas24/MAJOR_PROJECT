@@ -23,77 +23,58 @@ export default function MiniNavbar() {
     userDisplayName = user.email.split("@")[0];
   }
 
-  const navLinkStyle = {
-    padding: "8px 12px",
-    borderRadius: "4px",
-    transition: "all 0.3s"
-  };
-
-  const activeStyle = {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-    transform: "scale(1.05)"
-  };
 
   return (
     <div className="category-topnav">
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="navbar-left">
         <img
           src={logo}
           alt="APIS Logo"
-          style={{
-            height: "60px",
-            width: "60px",
-            borderRadius: "50%",
-            border: "3px solid #007bff"
-          }}
+          className="navbar-logo"
         />
-        <h3 style={{ margin: 0, color: "white" }}>APIS</h3>
+        <div className="navbar-brand">
+          <div className="navbar-brand-title">
+            <h2>APIS</h2>
+            <span>| AI Powered Interview System</span>
+          </div>
+        </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <Link to="/" style={{ ...navLinkStyle, ...(location.pathname === "/" ? activeStyle : {}) }}>
-          Home
-        </Link>
-        <Link to="/hr-interview" style={{ ...navLinkStyle, ...(location.pathname === "/hr-interview" ? activeStyle : {}) }}>
-          HR/Behavioral
-        </Link>
-        <Link to="/technical-interview" style={{ ...navLinkStyle, ...(location.pathname === "/technical-interview" ? activeStyle : {}) }}>
-          Technical
-        </Link>
-        <Link to="/mock-interview" style={{ ...navLinkStyle, ...(location.pathname === "/mock-interview" ? activeStyle : {}) }}>
-          Mock
-        </Link>
-        <Link to="/aptitude-test" style={{ ...navLinkStyle, ...(location.pathname === "/aptitude-test" ? activeStyle : {}) }}>
-          Aptitude
-        </Link>
+      <div className="navbar-center">
+        <div className="nav-links">
+          <Link to="/" className={`nav-link ${location.pathname === "/" ? "active" : ""}`}>
+            Home
+          </Link>
+          <Link to="/hr-interview" className={`nav-link ${location.pathname === "/hr-interview" ? "active" : ""}`}>
+            HR/Behavioral
+          </Link>
+          <Link to="/technical-interview" className={`nav-link ${location.pathname === "/technical-interview" ? "active" : ""}`}>
+            Technical
+          </Link>
+          <Link to="/mock-interview" className={`nav-link ${location.pathname === "/mock-interview" ? "active" : ""}`}>
+            Mock
+          </Link>
+          <Link to="/aptitude-test" className={`nav-link ${location.pathname === "/aptitude-test" ? "active" : ""}`}>
+            Aptitude
+          </Link>
+        </div>
       </div>
 
       {user ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="username" style={{ color: "white", fontWeight: 600 }}>
-            {userDisplayName}
-          </span>
-          <span
-            className="profile-icon"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              background: "#eee",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 600,
-              overflow: "hidden"
-            }}
-          >
+        <div className="navbar-right">
+          <div className="profile-card mini-profile-card">
+            <div className="profile-icon mini-profile-icon">
             {profileImage ? (
-              <img src={profileImage} alt="profile" style={{ width: 32, height: 32, borderRadius: "50%" }} />
+              <img src={profileImage} alt="profile" />
             ) : (
               userInitial
             )}
-          </span>
+            </div>
+            <div className="profile-user-details">
+              <span className="profile-user-name">{userDisplayName}</span>
+              <span className="profile-user-email">{user?.email}</span>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

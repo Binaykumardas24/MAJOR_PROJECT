@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
+import MiniNavbar from "../components/MiniNavbar";
 
 function ResumeInterview() {
   const navigate = useNavigate();
@@ -88,16 +89,7 @@ function ResumeInterview() {
 
   return (
     <div className="mock-page reveal">
-      <div className="category-topnav">
-        <h3>APIS</h3>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <Link to="/" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Home</Link>
-          <Link to="/hr-interview" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/hr-interview' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>HR/Behavioral</Link>
-          <Link to="/technical-interview" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/technical-interview' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Technical</Link>
-          <Link to="/mock-interview" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/mock-interview' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Mock</Link>
-          <Link to="/aptitude-test" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/aptitude-test' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Aptitude</Link>
-        </div>
-      </div>
+      <MiniNavbar />
 
       {/* home button */}
       <div style={{ position: "absolute", top: 20, right: 20 }}>

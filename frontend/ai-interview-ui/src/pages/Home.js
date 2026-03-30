@@ -5,6 +5,21 @@ import Navbar from "../components/Navbar";
 
 function Home() {
   const navigate = useNavigate();
+  const [typedName, setTypedName] = React.useState("");
+
+  const userDisplayName = React.useMemo(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user) return "User";
+      if (user.first_name && user.last_name) return `${user.first_name} ${user.last_name}`;
+      if (user.first_name) return user.first_name;
+      if (user.last_name) return user.last_name;
+      if (user.email) return user.email.split("@")[0];
+      return "User";
+    } catch {
+      return "User";
+    }
+  }, []);
 
   React.useEffect(() => {
     const observer = new IntersectionObserver(
@@ -23,6 +38,41 @@ function Home() {
     return () => observer.disconnect();
   }, []);
 
+  React.useEffect(() => {
+    const fullName = userDisplayName || "User";
+    let currentIndex = 0;
+    let timeoutId;
+
+    const tick = () => {
+      if (currentIndex <= fullName.length) {
+        setTypedName(fullName.slice(0, currentIndex));
+      }
+
+      if (currentIndex < fullName.length) {
+        currentIndex += 1;
+        timeoutId = window.setTimeout(tick, 120);
+      } else {
+        timeoutId = window.setTimeout(() => {
+          currentIndex = 0;
+          setTypedName("");
+          timeoutId = window.setTimeout(() => {
+            currentIndex = 1;
+            setTypedName(fullName.slice(0, currentIndex));
+            timeoutId = window.setTimeout(tick, 120);
+          }, 400);
+        }, 1400);
+      }
+    };
+
+    timeoutId = window.setTimeout(() => {
+      currentIndex = 1;
+      setTypedName(fullName.slice(0, currentIndex));
+      timeoutId = window.setTimeout(tick, 120);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [userDisplayName]);
+
   return (
     <>
       <Navbar />
@@ -30,6 +80,11 @@ function Home() {
       {/* HERO - professional two-column layout */}
       <div className="mock-hero violet-hero reveal">
         <div style={{ maxWidth: 720 }}>
+          <div className="hero-greeting">
+            <span className="hero-greeting-label">Hello</span>
+            <span className="hero-greeting-name">{typedName}</span>
+            <span className="hero-greeting-cursor" />
+          </div>
           <h1>Practice. Improve. Land the Job.</h1>
           <p>
             APIS helps you prepare for interviews with AI-driven feedback and

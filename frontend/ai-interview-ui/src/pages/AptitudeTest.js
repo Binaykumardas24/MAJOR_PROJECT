@@ -1,11 +1,10 @@
 import React, { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import "../App.css";
-import logo from "../assets/logo.png";
+import MiniNavbar from "../components/MiniNavbar";
 
 function AptitudeTest() {
   const navigate = useNavigate();
-  const location = useLocation();
   const aptitudeQuestions = [
     {
       q: "What is the next number in the sequence: 2, 4, 8, 16, ?",
@@ -46,50 +45,7 @@ function AptitudeTest() {
 
   return (
     <div className="mock-page reveal">
-      <div className="category-topnav">
-        <img 
-          src={logo} 
-          alt="APIS Logo" 
-          style={{
-            height: '60px',
-            width: '60px',
-            borderRadius: '50%',
-            border: '3px solid #007bff',
-            marginRight: '10px'
-          }}
-        />
-        <div style={{ display: "flex", alignItems: "center", gap: "0px" }}>
-          <h3 style={{ margin: 0 }}>APIS</h3>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link to="/" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Home</Link>
-          <Link to="/hr-interview" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/hr-interview' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>HR/Behavioral</Link>
-          <Link to="/technical-interview" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/technical-interview' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Technical</Link>
-          <Link to="/mock-interview" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/mock-interview' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Mock</Link>
-          <Link to="/aptitude-test" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/aptitude-test' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Aptitude</Link>
-          {(() => {
-            const user = JSON.parse(localStorage.getItem("user"));
-            const profileImage = user?.profile_image || null;
-            const userInitial = user?.email ? user.email[0].toUpperCase() : "U";
-            let userDisplayName = "User";
-            if (user?.first_name && user?.last_name) {
-              userDisplayName = `${user.first_name} ${user.last_name}`;
-            } else if (user?.first_name) {
-              userDisplayName = user.first_name;
-            } else if (user?.email) {
-              userDisplayName = user.email.split("@")[0];
-            }
-            return user ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="username">{userDisplayName}</span>
-                <span className="profile-icon" style={{ width: 32, height: 32, borderRadius: '50%', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
-                  {profileImage ? <img src={profileImage} alt="profile" style={{ width: 32, height: 32, borderRadius: '50%' }} /> : userInitial}
-                </span>
-              </span>
-            ) : null;
-          })()}
-        </div>
-      </div>
+      <MiniNavbar />
 
       {/* HERO */}
       <div className="mock-hero" style={{ background: 'linear-gradient(90deg, #009688 0%, #4DD0E1 100%)' }}>
