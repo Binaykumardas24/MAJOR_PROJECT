@@ -32,10 +32,9 @@ function Home() {
     };
   }, []);
 
-  const userDisplayName = React.useMemo(() => {
+  const userFirstName = React.useMemo(() => {
     const user = storedUser;
     if (!user) return "User";
-    if (user.first_name && user.last_name) return `${user.first_name} ${user.last_name}`;
     if (user.first_name) return user.first_name;
     if (user.last_name) return user.last_name;
     if (user.email) return user.email.split("@")[0];
@@ -65,16 +64,16 @@ function Home() {
       return;
     }
 
-    const fullName = userDisplayName;
+    const firstName = userFirstName;
     let currentIndex = 0;
     let timeoutId;
 
     const tick = () => {
-      if (currentIndex <= fullName.length) {
-        setTypedName(fullName.slice(0, currentIndex));
+      if (currentIndex <= firstName.length) {
+        setTypedName(firstName.slice(0, currentIndex));
       }
 
-      if (currentIndex < fullName.length) {
+      if (currentIndex < firstName.length) {
         currentIndex += 1;
         timeoutId = window.setTimeout(tick, 120);
       } else {
@@ -83,7 +82,7 @@ function Home() {
           setTypedName("");
           timeoutId = window.setTimeout(() => {
             currentIndex = 1;
-            setTypedName(fullName.slice(0, currentIndex));
+            setTypedName(firstName.slice(0, currentIndex));
             timeoutId = window.setTimeout(tick, 120);
           }, 400);
         }, 1400);
@@ -92,12 +91,12 @@ function Home() {
 
     timeoutId = window.setTimeout(() => {
       currentIndex = 1;
-      setTypedName(fullName.slice(0, currentIndex));
+      setTypedName(firstName.slice(0, currentIndex));
       timeoutId = window.setTimeout(tick, 120);
     }, 400);
 
     return () => window.clearTimeout(timeoutId);
-  }, [storedUser, userDisplayName]);
+  }, [storedUser, userFirstName]);
 
   return (
     <>
@@ -108,9 +107,9 @@ function Home() {
         <div style={{ maxWidth: 720 }}>
           {storedUser && (
             <div className="hero-greeting">
-              <span className="hero-greeting-label">Welcome back</span>
+              <span className="hero-greeting-label">Welcome</span>
               <span className="hero-greeting-name">{typedName}</span>
-              <span className="hero-greeting-cursor" />
+              <span className="hero-greeting-cursor" aria-hidden="true" />
             </div>
           )}
           <h1>Practice. Improve. Land the Job.</h1>

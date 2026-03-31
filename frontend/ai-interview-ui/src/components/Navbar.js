@@ -313,20 +313,24 @@ function Navbar() {
                     >
                       ×
                     </button>
+                    <div className="logout-confirm-pill">Session control</div>
                     <div className="logout-confirm-header">
                       <div className="logout-confirm-icon">
                         <LogOut size={26} color="#DC2626" />
                       </div>
-                      <div>
-                        <h3>Confirm Logout</h3>
+                      <div className="logout-confirm-heading">
+                        <h3>Log out now?</h3>
                         <p className="logout-confirm-subtitle">
                           You’re about to end your current session.
                         </p>
                       </div>
                     </div>
-                    <p className="logout-confirm-body">
-                      If you continue, you will be signed out and redirected to the homepage.
-                    </p>
+                    <div className="logout-confirm-note">
+                      <div className="logout-confirm-note-label">What happens next</div>
+                      <p className="logout-confirm-body">
+                        You will be signed out immediately and redirected to the homepage. You can sign back in anytime.
+                      </p>
+                    </div>
                     <div className="logout-confirm-actions">
                       <button className="mock-btn logout-confirm-primary" onClick={performLogout}>
                         Yes, logout

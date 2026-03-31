@@ -34,96 +34,213 @@
   animation: popupScaleIn 0.18s ease-out forwards;
 }
 .modal-close-btn {
+  appearance: none;
+  -webkit-appearance: none;
   position: absolute;
   top: 16px;
   right: 16px;
-  width: 36px;
-  height: 36px;
+  width: 20px;
+  height: 20px;
   border: none;
-  border-radius: 50%;
-  background: rgba(239, 68, 68, 0.14);
+  border-radius: 0;
+  background: transparent;
   color: #dc2626;
-  font-size: 1.2rem;
+  font-size: 0;
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
+  box-shadow: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, filter 0.12s ease, text-shadow 0.12s ease;
+}
+.nav-right button.modal-close-btn {
+  padding: 0;
+  min-width: 20px;
+  max-width: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  background-color: transparent;
+  color: #dc2626;
+  flex: 0 0 20px;
+}
+.modal-close-btn::before {
+  content: "×";
+  color: #dc2626;
+  display: block;
+  font-size: 1.45rem;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateY(-2px);
 }
 .modal-close-btn:hover {
-  background: rgba(239, 68, 68, 0.24);
-  transform: translateY(-1px);
+  background: transparent;
+  background-color: transparent;
+  transform: scale(1.08);
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.45));
+}
+.modal-close-btn:hover::before {
+  text-shadow: 0 0 6px rgba(239, 68, 68, 0.55), 0 0 14px rgba(239, 68, 68, 0.35);
+}
+.modal-close-btn:focus,
+.modal-close-btn:focus-visible,
+.modal-close-btn:active {
+  background: transparent;
+  background-color: transparent;
+  outline: none;
 }
 .logout-confirm-modal {
-  padding: 44px 36px 32px;
-  gap: 24px;
+  position: relative;
+  align-items: stretch;
+  overflow: hidden;
+  padding: 28px;
+  gap: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.96) 34%, rgba(243, 232, 255, 0.96) 66%, rgba(254, 226, 226, 0.95) 100%);
+  border: 1px solid rgba(129, 140, 248, 0.18);
+  box-shadow: 0 34px 110px rgba(76, 29, 149, 0.26);
+}
+.logout-confirm-modal::before {
+  content: "";
+  position: absolute;
+  inset: -80px auto auto -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.24), rgba(56, 189, 248, 0));
+  pointer-events: none;
+}
+.logout-confirm-modal::after {
+  content: "";
+  position: absolute;
+  right: -72px;
+  bottom: -96px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.24), rgba(244, 114, 182, 0));
+  pointer-events: none;
+}
+.logout-confirm-pill {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(168, 85, 247, 0.16), rgba(244, 114, 182, 0.16));
+  border: 1px solid rgba(129, 140, 248, 0.24);
+  color: #4c1d95;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 .logout-confirm-header {
+  position: relative;
+  z-index: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
   gap: 16px;
 }
 .logout-confirm-icon {
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: radial-gradient(circle at top left, rgba(236, 72, 153, 0.24), rgba(124, 58, 237, 0.14));
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #fff1f2, #f5d0fe 55%, #dbeafe 100%);
+  border: 1px solid rgba(244, 114, 182, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 16px 34px rgba(168, 85, 247, 0.14);
   display: grid;
   place-items: center;
+  flex-shrink: 0;
+}
+.logout-confirm-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .logout-confirm-header h3 {
   margin: 0;
-  font-size: 1.55rem;
-  color: #311d6f;
+  font-size: 1.85rem;
+  line-height: 1.1;
+  color: #22104a;
 }
 .logout-confirm-subtitle {
-  margin: 6px 0 0;
-  color: #5b21b6;
+  margin: 0;
+  color: #6d28d9;
   font-size: 1rem;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+.logout-confirm-note {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.76), rgba(238, 242, 255, 0.78));
+  border: 1px solid rgba(165, 180, 252, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 18px 40px rgba(129, 140, 248, 0.12);
+}
+.logout-confirm-note-label {
+  margin-bottom: 8px;
+  color: #2563eb;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .logout-confirm-body {
   margin: 0;
-  color: #4338ca;
-  text-align: center;
-  line-height: 1.85;
-  font-size: 1rem;
+  color: #312e81;
+  text-align: left;
+  line-height: 1.7;
+  font-size: 0.98rem;
 }
 .logout-confirm-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
-  justify-content: center;
+  justify-content: stretch;
   gap: 14px;
-  margin-top: 26px;
   width: 100%;
 }
 .logout-confirm-actions button {
-  min-width: 140px;
   flex: 1;
-  height: 48px;
-  border-radius: 999px;
+  min-height: 52px;
+  border-radius: 18px;
   padding: 0 22px;
   font-weight: 700;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  margin-top: 0;
+  transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, background 0.08s ease-out;
 }
 .logout-confirm-actions button:hover {
-  transform: translateY(-1px);
+  transform: translateY(-3px);
 }
 .logout-confirm-primary {
-  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  background: linear-gradient(135deg, #ef4444 0%, #db2777 100%);
   color: #fff;
   border: 1px solid transparent;
-  box-shadow: 0 14px 34px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 14px 34px rgba(225, 29, 72, 0.24);
 }
 .logout-confirm-primary:hover {
-  background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%);
+  background: linear-gradient(135deg, #dc2626 0%, #be185d 100%);
 }
 .cancel-btn {
-  background: #eef2ff;
+  background: rgba(255, 255, 255, 0.82);
   color: #312e81;
-  border: 1px solid #c7d2fe;
+  border: 1px solid rgba(199, 210, 254, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .cancel-btn:hover {
-  background: #e0e7ff;
+  background: #eef2ff;
 }
 @keyframes popupFadeIn {
   from {
@@ -1297,32 +1414,32 @@ button {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 18px;
-  font-size: 48px;
-  letter-spacing: 0.04em;
-  min-height: 56px;
-  white-space: nowrap;
-  overflow: visible;
+  gap: 12px;
+  margin-bottom: 15px;
+  font-size: 52px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: normal;
+  min-height: auto;
+  white-space: normal;
   opacity: 0;
   transform: translateY(18px);
   animation: fadeInUp 0.8s ease-out forwards 0.1s;
 }
 
 .hero-greeting-label {
-  font-family: "Segoe Print", "Comic Sans MS", "Segoe UI", sans-serif;
   font-size: inherit;
   display: inline-block;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.92);
+  font-weight: inherit;
+  color: #fff;
   text-transform: none;
-  letter-spacing: 0.02em;
+  letter-spacing: inherit;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
 }
 
 .hero-greeting-name {
   font-family: "Segoe Print", "Comic Sans MS", "Segoe UI", sans-serif;
-  font-size: inherit;
+  font-size: 0.92em;
   font-weight: 700;
   color: #fff;
   letter-spacing: 0.01em;
@@ -1333,7 +1450,7 @@ button {
 .hero-greeting-cursor {
   display: inline-block;
   width: auto;
-  margin-left: 8px;
+  margin-left: 2px;
   transform: translateY(-1px);
   font-weight: 900;
   color: #fff;
