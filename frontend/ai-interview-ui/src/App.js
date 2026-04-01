@@ -7,7 +7,7 @@ import Auth from "./pages/Auth";
 import Instructions from "./pages/Instructions";
 import Permissions from "./pages/Permissions";
 import Interview from "./pages/Interview";
-import VoiceInterviewPage from "./pages/VoiceInterviewPage";
+import VoiceInterview from "./pages/VoiceInterview";
 import EditProfile from "./pages/EditProfile";
 import Topics from "./pages/Topics";
 import DashboardPage from "./pages/DashboardPage";
@@ -137,13 +137,22 @@ function App() {
           path="/voice-interview"
           element={
             <ProtectedRoute>
-              <VoiceInterviewPage />
+              <VoiceInterview />
             </ProtectedRoute>
           }
         />
 
         <Route
           path="/reports/:sessionId"
+          element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/results/:sessionId"
           element={
             <ProtectedRoute>
               <Reports />

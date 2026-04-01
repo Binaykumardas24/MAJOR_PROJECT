@@ -21,6 +21,138 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant").strip()
 
 INTERVIEW_SESSIONS: Dict[str, Dict[str, Any]] = {}
 
+ROLE_PROFILES: List[Dict[str, Any]] = [
+    {
+        "aliases": ["software developer", "software engineer", "backend", "backend developer", "full stack", "full-stack", "fullstack"],
+        "label": "Software Developer / Backend / Full Stack",
+        "core_fields": [
+            "Data Structures and Algorithms",
+            "arrays, linked lists, trees, graphs",
+            "sorting and searching",
+            "Python, Java, C++, or JavaScript fundamentals",
+            "database management and SQL",
+            "operating systems concepts",
+            "computer networks basics",
+            "system design for experienced roles",
+        ],
+        "question_seeds": [
+            "How would you reverse a linked list, and what are the time and space trade-offs?",
+            "What is the difference between a process and a thread?",
+            "Write or explain an SQL query to fetch the top 3 salaries from an employee table.",
+            "How do HTTP requests flow between client, server, and database in a typical web application?",
+            "How would you design a scalable API service for a growing product?",
+        ],
+    },
+    {
+        "aliases": ["frontend", "frontend developer", "front end", "ui developer", "react developer"],
+        "label": "Frontend Developer",
+        "core_fields": [
+            "HTML, CSS, and JavaScript fundamentals",
+            "React, Angular, or Vue",
+            "DOM, browser rendering, and events",
+            "responsive design and accessibility",
+            "API integration and state handling",
+        ],
+        "question_seeds": [
+            "What is the virtual DOM in React, and why is it useful?",
+            "What is the difference between == and === in JavaScript?",
+            "How does event bubbling work in the browser?",
+            "How would you make a complex UI responsive across devices?",
+            "How do you fetch and manage API data safely in a frontend application?",
+        ],
+    },
+    {
+        "aliases": ["backend developer", "api developer", "server side", "server-side", "fastapi", "django", "node", "spring"],
+        "label": "Backend Developer",
+        "core_fields": [
+            "server-side programming with Python, Java, or Node.js",
+            "REST APIs and authentication with JWT",
+            "SQL and NoSQL databases",
+            "system design basics",
+            "scalability and backend architecture",
+        ],
+        "question_seeds": [
+            "How would you design a login system using JWT authentication?",
+            "What is a REST API and what makes it RESTful?",
+            "When would you choose SQL over NoSQL, or vice versa?",
+            "How would you structure a FastAPI or Node.js backend for maintainability?",
+            "What steps would you take to secure a backend API?",
+        ],
+    },
+    {
+        "aliases": ["data science", "data scientist", "machine learning", "ml engineer", "ai engineer", "artificial intelligence"],
+        "label": "Data Science / AI / ML",
+        "core_fields": [
+            "linear algebra, probability, and statistics",
+            "regression, classification, and clustering",
+            "NumPy, Pandas, TensorFlow, or PyTorch",
+            "Python for data workflows",
+            "data cleaning, visualization, and model evaluation",
+        ],
+        "question_seeds": [
+            "What is overfitting and how do you reduce it?",
+            "What is the difference between supervised and unsupervised learning?",
+            "How would you evaluate a classification model?",
+            "Why is data cleaning important before training a model?",
+            "How would you explain bias-variance trade-off?",
+        ],
+    },
+    {
+        "aliases": ["devops", "cloud engineer", "site reliability", "sre", "platform engineer"],
+        "label": "DevOps / Cloud Engineer",
+        "core_fields": [
+            "AWS, Azure, or GCP basics",
+            "CI/CD pipelines",
+            "Docker and Kubernetes",
+            "Linux fundamentals",
+            "networking and deployment workflows",
+        ],
+        "question_seeds": [
+            "What is a Docker container and how is it different from a virtual machine?",
+            "Explain a CI/CD pipeline from commit to deployment.",
+            "What role does Kubernetes play in modern deployments?",
+            "How would you troubleshoot a Linux service that fails after deployment?",
+            "How do load balancers and DNS fit into cloud architecture?",
+        ],
+    },
+    {
+        "aliases": ["qa", "quality assurance", "testing", "test engineer", "automation tester", "qa engineer"],
+        "label": "Testing / QA Engineer",
+        "core_fields": [
+            "manual testing concepts",
+            "test cases and bug lifecycle",
+            "automation testing with Selenium or similar tools",
+            "API testing",
+            "regression and integration testing",
+        ],
+        "question_seeds": [
+            "How would you write test cases for a login page?",
+            "What is regression testing and when should it be run?",
+            "How do you decide what to automate in a test suite?",
+            "How would you validate an API endpoint?",
+            "What information makes a bug report actionable for developers?",
+        ],
+    },
+    {
+        "aliases": ["cybersecurity", "security engineer", "information security", "cyber security"],
+        "label": "Cybersecurity",
+        "core_fields": [
+            "network security fundamentals",
+            "cryptography basics",
+            "ethical hacking basics",
+            "OWASP vulnerabilities",
+            "threat analysis and secure practices",
+        ],
+        "question_seeds": [
+            "What is SQL injection and how do you prevent it?",
+            "What is encryption and how is it different from hashing?",
+            "How would you explain the OWASP Top 10 to a developer?",
+            "What are common ways to secure authentication systems?",
+            "How would you approach vulnerability assessment in a web app?",
+        ],
+    },
+]
+
 
 class ProviderError(Exception):
     pass
@@ -116,6 +248,7 @@ def _context_summary(payload: Dict[str, Any]) -> str:
     config_mode = payload.get("config_mode") or "question"
     time_mode_interval = payload.get("time_mode_interval")
     interview_mode_time = payload.get("interview_mode_time")
+    role_profile = _match_role_profile(payload.get("job_role") or "")
     selected_mode = payload.get("selected_mode") or (
         "language" if payload.get("primary_language") else "role" if payload.get("job_role") else "general"
     )
@@ -134,6 +267,9 @@ def _context_summary(payload: Dict[str, Any]) -> str:
         parts.append(f"Time mode interval: {time_mode_interval} minutes")
     if payload.get("practice_type") == "interview" and interview_mode_time:
         parts.append(f"Interview duration: {interview_mode_time} minutes")
+    if role_profile:
+        parts.append(f"Role profile: {role_profile['label']}")
+        parts.append(f"Role core fields: {', '.join(role_profile['core_fields'])}")
     resume_text = _normalize_text(payload.get("resume_text") or "")
     if resume_text:
         parts.append(f"Resume snippet: {resume_text[:700]}")
@@ -189,6 +325,60 @@ def _safe_question_type(value: Any) -> str:
     if normalized in allowed:
         return normalized
     return "practical"
+
+
+def _match_role_profile(job_role: str) -> Optional[Dict[str, Any]]:
+    role_text = _normalize_text(job_role).lower()
+    if not role_text:
+        return None
+
+    for profile in ROLE_PROFILES:
+        for alias in profile["aliases"]:
+            if alias in role_text:
+                return profile
+    return None
+
+
+def _fallback_role_blueprint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    job_role = _normalize_text(payload.get("job_role") or "")
+    primary_language = _normalize_text(payload.get("primary_language") or "")
+    selected_options = _safe_list(payload.get("selected_options") or [])
+    role_profile = _match_role_profile(job_role)
+
+    if role_profile:
+        return {
+            "role_label": role_profile["label"],
+            "core_areas": role_profile["core_fields"][:6],
+            "tech_stack": [primary_language] if primary_language else [],
+            "question_focus": role_profile["question_seeds"][:5],
+            "language_focus": primary_language or "",
+        }
+
+    inferred_stack = []
+    if primary_language:
+        inferred_stack.append(primary_language)
+    inferred_stack.extend(selected_options[:4])
+
+    core_areas = selected_options[:6] if selected_options else [
+        "programming fundamentals",
+        "core concepts",
+        "problem solving",
+        "debugging",
+        "system understanding",
+    ]
+
+    return {
+        "role_label": job_role or primary_language or "Technical Role",
+        "core_areas": core_areas,
+        "tech_stack": inferred_stack,
+        "question_focus": [
+            f"Ask technical fundamentals for {job_role or primary_language or 'the selected role'}",
+            "Ask conceptual questions based on selected topics",
+            "Ask practical implementation questions",
+            "Ask debugging or architecture questions where relevant",
+        ],
+        "language_focus": primary_language or "",
+    }
 
 
 async def _call_gemini_json(prompt: str, temperature: float = 0.35) -> Dict[str, Any]:
@@ -285,6 +475,60 @@ async def _generate_json_with_fallback(
     raise ProviderError(" | ".join(errors) if errors else "No provider available.")
 
 
+async def _infer_role_blueprint(payload: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+    selected_mode = payload.get("selected_mode") or "general"
+    category = payload.get("category") or "general"
+    selected_options = _safe_list(payload.get("selected_options") or [])
+    fallback_blueprint = _fallback_role_blueprint(payload)
+
+    prompt = f"""
+You are analyzing a user's selected interview role and topics.
+
+Input:
+- Category: {category}
+- Selected mode: {selected_mode}
+- Job role: {payload.get("job_role") or "Not specified"}
+- Primary language: {payload.get("primary_language") or "Not specified"}
+- Experience: {payload.get("experience") or "Not specified"}
+- Selected options: {json.dumps(selected_options, ensure_ascii=False)}
+
+Return valid JSON in this exact shape:
+{{
+  "role_label": "normalized role label",
+  "core_areas": ["6 to 8 technical domains that this role should be interviewed on"],
+  "tech_stack": ["languages, frameworks, databases, tools, cloud, testing, or infra items relevant to the role"],
+  "question_focus": ["5 to 7 specific areas the interview should ask from"],
+  "language_focus": "primary language if relevant, otherwise empty string"
+}}
+
+Rules:
+- Infer the likely tech stack and concepts from the selected role and options.
+- Keep this technical only.
+- Do not include HR, behavioral, motivation, strengths, or self-introduction topics.
+- If the role suggests backend, frontend, full stack, data science, AI/ML, DevOps, QA, or security, infer the most relevant stacks and concepts automatically.
+- If selected options are provided, use them strongly.
+- If a language is provided, include it where relevant.
+- Avoid markdown.
+"""
+
+    try:
+        blueprint, provider = await _generate_json_with_fallback(
+            prompt,
+            ["gemini", "groq", "ollama"],
+            0.2,
+        )
+        normalized = {
+            "role_label": _normalize_text(blueprint.get("role_label") or fallback_blueprint["role_label"]),
+            "core_areas": _safe_list(blueprint.get("core_areas")) or fallback_blueprint["core_areas"],
+            "tech_stack": _safe_list(blueprint.get("tech_stack")) or fallback_blueprint["tech_stack"],
+            "question_focus": _safe_list(blueprint.get("question_focus")) or fallback_blueprint["question_focus"],
+            "language_focus": _normalize_text(blueprint.get("language_focus") or fallback_blueprint["language_focus"]),
+        }
+        return normalized, provider
+    except ProviderError:
+        return fallback_blueprint, "fallback"
+
+
 def _default_questions(payload: Dict[str, Any]) -> Dict[str, Any]:
     role = payload.get("job_role") or "candidate"
     language = payload.get("primary_language")
@@ -297,63 +541,76 @@ def _default_questions(payload: Dict[str, Any]) -> Dict[str, Any]:
     config_mode = payload.get("config_mode") or "question"
     time_hint = payload.get("time_mode_interval") or payload.get("interview_mode_time")
     target_subject = _target_subject(payload)
+    role_profile = _match_role_profile(role)
+    base_questions: List[Dict[str, Any]] = []
 
-    base_questions = [
-        {
-            "question": f"Tell me about yourself and why you are interested in the {role} role.",
-            "question_type": "introduction",
-            "expected_points": [
-                "brief professional background",
-                "relevant experience or education",
-                "clear motivation for the role",
-            ],
-            "evaluation_focus": ["clarity", "relevance", "confidence"],
-        },
-        {
-            "question": f"Describe a project or problem you handled that best shows your fit for {role}.",
-            "question_type": "practical",
-            "expected_points": [
-                "clear context and objective",
-                "specific actions taken",
-                "result or impact",
-            ],
-            "evaluation_focus": ["ownership", "problem solving", "impact"],
-        },
-        {
-            "question": "What are your strongest skills, and how would they help you in this position?",
-            "question_type": "behavioral",
-            "expected_points": [
-                "two or more relevant strengths",
-                "link to the target role",
-                "practical examples",
-            ],
-            "evaluation_focus": ["self awareness", "relevance", "examples"],
-        },
-        {
-            "question": "Tell me about a challenge or mistake you faced and how you handled it.",
-            "question_type": "scenario",
-            "expected_points": [
-                "honest challenge or mistake",
-                "reflection and learning",
-                "improved outcome or behavior",
-            ],
-            "evaluation_focus": ["accountability", "learning mindset", "communication"],
-        },
-        {
-            "question": "Why should we hire you over other candidates?",
-            "question_type": "behavioral",
-            "expected_points": [
-                "clear value proposition",
-                "role-specific strengths",
-                "confidence without arrogance",
-            ],
-            "evaluation_focus": ["persuasion", "confidence", "fit"],
-        },
-    ]
+    if role_profile:
+        role_field_points = role_profile["core_fields"][:4]
+        base_questions.extend(
+            [
+                {
+                    "question": f"For a {role_profile['label']} role, which core technical areas should a strong {experience} candidate be confident in, and why?",
+                    "question_type": "fundamental",
+                    "expected_points": role_field_points,
+                    "evaluation_focus": ["fundamentals", "technical awareness", "clarity"],
+                },
+                {
+                    "question": role_profile["question_seeds"][0],
+                    "question_type": "practical",
+                    "expected_points": [
+                        "clear step-by-step technical explanation",
+                        "correct use of core concepts",
+                        "time or space complexity or trade-off reasoning",
+                        "practical implementation approach",
+                    ],
+                    "evaluation_focus": ["problem solving", "technical depth", "clarity"],
+                },
+                {
+                    "question": role_profile["question_seeds"][1],
+                    "question_type": "conceptual",
+                    "expected_points": [
+                        "correct definition of the concept",
+                        "difference from related concept",
+                        "practical significance",
+                    ],
+                    "evaluation_focus": ["conceptual depth", "accuracy", "clarity"],
+                },
+                {
+                    "question": role_profile["question_seeds"][2],
+                    "question_type": "practical",
+                    "expected_points": [
+                        "role-relevant technical reasoning",
+                        "correct syntax or structured explanation",
+                        "clear practical outcome",
+                    ],
+                    "evaluation_focus": ["applied skills", "accuracy", "clarity"],
+                },
+                {
+                    "question": role_profile["question_seeds"][3],
+                    "question_type": "scenario",
+                    "expected_points": [
+                        "clear architecture or solution flow",
+                        "relevant tools or components",
+                        "trade-offs and scalability or maintainability considerations",
+                    ],
+                    "evaluation_focus": ["system thinking", "practical design", "technical reasoning"],
+                },
+                {
+                    "question": role_profile["question_seeds"][4],
+                    "question_type": "scenario",
+                    "expected_points": [
+                        "real-world technical constraints",
+                        "structured problem-solving approach",
+                        "relevant stack choices and reasoning",
+                    ],
+                    "evaluation_focus": ["architecture", "decision making", "technical fit"],
+                },
+            ]
+        )
 
     if language:
         base_questions.insert(
-            2,
+            min(2, len(base_questions)),
             {
                 "question": f"How have you used {language} in real projects, and what makes you effective with it?",
                 "question_type": "practical",
@@ -366,7 +623,7 @@ def _default_questions(payload: Dict[str, Any]) -> Dict[str, Any]:
             },
         )
         base_questions.insert(
-            1,
+            min(1, len(base_questions)),
             {
                 "question": f"What core fundamentals of {language} should a strong {experience} candidate understand before solving advanced problems?",
                 "question_type": "fundamental",
@@ -395,9 +652,9 @@ def _default_questions(payload: Dict[str, Any]) -> Dict[str, Any]:
             ],
             "evaluation_focus": ["technical depth", "problem solving", "clarity"],
         }
-        base_questions.insert(1, technical_question)
+        base_questions.insert(min(1, len(base_questions)), technical_question)
         base_questions.insert(
-            1,
+            min(1, len(base_questions)),
             {
                 "question": f"What core concepts and fundamentals should every {target_subject} candidate be comfortable explaining confidently?",
                 "question_type": "conceptual",
@@ -413,7 +670,7 @@ def _default_questions(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     if selected_mode == "language" and language:
         base_questions.insert(
-            1,
+            min(1, len(base_questions)),
             {
                 "question": (
                     f"As a {experience} {language} candidate, what topics should you be strongest in, "
@@ -432,7 +689,7 @@ def _default_questions(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     if focus:
         base_questions.insert(
-            1,
+            min(1, len(base_questions)),
             {
                 "question": f"You selected {', '.join(focus[:3])}. Which of these best matches your strengths and why?",
                 "question_type": "conceptual",
@@ -446,7 +703,7 @@ def _default_questions(payload: Dict[str, Any]) -> Dict[str, Any]:
         )
         if category == "technical" or selected_mode == "language":
             base_questions.insert(
-                2,
+                min(2, len(base_questions)),
                 {
                     "question": f"Pick one of these focus areas: {', '.join(focus[:3])}. Explain its core fundamentals and where it is applied in practice.",
                     "question_type": "fundamental",
@@ -460,6 +717,41 @@ def _default_questions(payload: Dict[str, Any]) -> Dict[str, Any]:
                 },
             )
 
+    if not base_questions:
+        base_questions = [
+            {
+                "question": f"What are the most important technical fundamentals for a {role} candidate?",
+                "question_type": "fundamental",
+                "expected_points": [
+                    "role-relevant technical fundamentals",
+                    "clear explanation of why they matter",
+                    "practical usage in interviews or projects",
+                ],
+                "evaluation_focus": ["fundamentals", "clarity", "technical relevance"],
+            },
+            {
+                "question": f"Explain a technical problem you might solve as a {role} and how you would approach it.",
+                "question_type": "scenario",
+                "expected_points": [
+                    "clear technical context",
+                    "step-by-step approach",
+                    "relevant tools or concepts",
+                    "trade-offs or result",
+                ],
+                "evaluation_focus": ["problem solving", "technical depth", "clarity"],
+            },
+            {
+                "question": f"What concepts should every {role} candidate understand before working on real projects?",
+                "question_type": "conceptual",
+                "expected_points": [
+                    "important concepts listed clearly",
+                    "why each concept matters",
+                    "connection to real implementation",
+                ],
+                "evaluation_focus": ["conceptual clarity", "technical awareness", "relevance"],
+            },
+        ]
+
     trimmed = base_questions[:question_count]
     return {
         "assistant_intro": (
@@ -468,7 +760,7 @@ def _default_questions(payload: Dict[str, Any]) -> Dict[str, Any]:
             f"{language if selected_mode == 'language' and language else role}. "
             f"This interview is configured in {config_mode} mode"
             f"{f' for about {time_hint} minutes' if time_hint else ''}. "
-            "Answer naturally and clearly."
+            "I will focus only on technical, conceptual, and fundamentals questions. Answer naturally and clearly."
         ),
         "questions": trimmed,
     }
@@ -556,12 +848,30 @@ async def create_interview_session(payload: Dict[str, Any]) -> Dict[str, Any]:
     difficulty = _difficulty_from_experience(payload.get("experience") or "")
     target_subject = payload.get("primary_language") if payload.get("selected_mode") == "language" else payload.get("job_role")
     target_subject = target_subject or payload.get("job_role") or payload.get("primary_language") or "the selected interview focus"
+    role_profile = _match_role_profile(payload.get("job_role") or "")
+    role_blueprint, blueprint_provider = await _infer_role_blueprint(payload)
+    role_profile_summary = ""
+    if role_profile:
+        role_profile_summary = (
+            f"\nMatched role profile: {role_profile['label']}\n"
+            f"Core fields to draw from: {', '.join(role_profile['core_fields'])}\n"
+            f"Representative examples: {', '.join(role_profile['question_seeds'])}\n"
+        )
+    role_blueprint_summary = (
+        f"\nInferred role blueprint label: {role_blueprint.get('role_label') or target_subject}\n"
+        f"Inferred core areas: {', '.join(role_blueprint.get('core_areas') or [])}\n"
+        f"Inferred tech stack: {', '.join(role_blueprint.get('tech_stack') or [])}\n"
+        f"Inferred question focus: {', '.join(role_blueprint.get('question_focus') or [])}\n"
+        f"Inferred language focus: {role_blueprint.get('language_focus') or 'None'}\n"
+    )
 
     prompt = f"""
 You are building a tailored AI interview plan.
 
 Interview context:
 {_context_summary(payload)}
+{role_profile_summary}
+{role_blueprint_summary}
 
 Return valid JSON with this exact shape:
 {{
@@ -581,18 +891,22 @@ Rules:
 - Questions must match the category, selected mode, target subject, experience level, configuration mode, and interview context.
 - Treat the expected difficulty as {difficulty}.
 - Target the interview around {target_subject}.
+- Use the inferred role blueprint as the primary source for deciding tech stacks, concepts, frameworks, databases, tools, and question areas.
 - Include a balanced progression of questions: introductory, conceptual/fundamental, practical, and scenario-based where relevant.
 - For technical or language-oriented interviews, include fundamentals and conceptual understanding before harder applied questions.
 - Use the selected options as direct focus areas when they are provided.
 - If selected mode is role-based, ask role-oriented questions.
 - If selected mode is language-based, ask language-oriented questions with practical coding or engineering emphasis where relevant.
+- If a job role matches a known technical role profile, ask from that role's core tech stack and concepts only.
+- Do not ask HR questions, self-introduction questions, motivation questions, strengths/weaknesses questions, or behavioral questions.
+- Prefer technical fundamentals, conceptual understanding, implementation questions, architecture questions, debugging questions, APIs, databases, networking, operating systems, cloud, testing, or security depending on the selected job role.
 - If configuration mode is time mode, make the question set fit naturally within the selected time interval.
 - If practice type is interview mode, keep questions realistic and progressively challenging.
 - Keep expected_points practical enough to support approximate answer evaluation.
 - Avoid markdown.
 """
 
-    provider_meta = {"generation_provider": "fallback", "evaluation_provider": "fallback"}
+    provider_meta = {"generation_provider": "fallback", "evaluation_provider": "fallback", "analysis_provider": blueprint_provider}
     try:
         blueprint, provider = await _generate_json_with_fallback(
             prompt,
@@ -655,6 +969,7 @@ Rules:
             "interview_mode_time": payload.get("interview_mode_time"),
             "time_mode_interval": payload.get("time_mode_interval"),
             "selected_mode": payload.get("selected_mode"),
+            "role_blueprint": role_blueprint,
         },
         "question_outline": [
             {

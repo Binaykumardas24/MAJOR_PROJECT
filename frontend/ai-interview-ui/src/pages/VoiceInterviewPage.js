@@ -78,6 +78,7 @@ function VoiceInterviewPage() {
   const [started, setStarted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
+  const [aiSpeaking, setAiSpeaking] = useState(false);
   const [fullscreenBlocked, setFullscreenBlocked] = useState(false);
   const [latestEval, setLatestEval] = useState(null);
   const [history, setHistory] = useState([]);
@@ -122,6 +123,40 @@ function VoiceInterviewPage() {
   const transcript = clean(`${draft} ${interim}`);
   const title = safeText(payload.job_role || payload.primary_language || payload.category || "Interview");
 
+  const buildLocalFallbackReport = useCallback((endedEarly = false) => {
+    const evaluations = history.map((item) => normalizeEvaluation(item));
+    const scores = evaluations.map((item) => safeScore(item.score));
+    const overallScore = scores.length
+      ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length)
+      : 0;
+    const topStrengths = Array.from(new Set(evaluations.flatMap((item) => item.strengths || []))).slice(0, 3);
+    const improvementAreas = Array.from(new Set(evaluations.flatMap((item) => item.gaps || []))).slice(0, 3);
+    const fallbackSessionId = sessionIdRef.current || `local-${Date.now()}`;
+
+    return normalizeReport(
+      {
+        session_id: fallbackSessionId,
+        overall_score: overallScore,
+        ended_early: endedEarly,
+        summary: evaluations.length
+          ? "The backend session was unavailable at completion time, so this report was prepared from the answers and evaluations already captured on this page."
+          : "No evaluated answers were available to generate a full report.",
+        top_strengths: topStrengths,
+        improvement_areas: improvementAreas,
+        strongest_questions: evaluations.filter((item) => item.score >= 75).map((item) => item.question).slice(0, 3),
+        needs_work_questions: evaluations.filter((item) => item.score < 60).map((item) => item.question).slice(0, 3),
+        evaluations,
+        answers: evaluations.map((item) => item.answer),
+        question_outline: questionOutline,
+        questions_answered: evaluations.length,
+        total_questions: total || questionOutline.length || evaluations.length,
+        providers,
+        context: payload,
+      },
+      payload
+    );
+  }, [history, payload, providers, questionOutline, total]);
+
   const resolveTimerMinutes = () => {
     if (payload.config_mode === "time" && payload.time_mode_interval) {
       return Number(payload.time_mode_interval) || null;
@@ -137,6 +172,7 @@ function VoiceInterviewPage() {
       window.speechSynthesis.cancel();
     }
     speakingRef.current = false;
+    setAiSpeaking(false);
   }, []);
 
   const speak = useCallback((text) =>
@@ -149,13 +185,16 @@ function VoiceInterviewPage() {
       stopSpeech();
       const utterance = new SpeechSynthesisUtterance(value);
       speakingRef.current = true;
+      setAiSpeaking(true);
       utterance.lang = "en-US";
       utterance.onend = () => {
         speakingRef.current = false;
+        setAiSpeaking(false);
         resolve();
       };
       utterance.onerror = () => {
         speakingRef.current = false;
+        setAiSpeaking(false);
         resolve();
       };
       window.speechSynthesis.speak(utterance);
@@ -324,7 +363,18 @@ function VoiceInterviewPage() {
   };
 
   const finishInterview = useCallback(async ({ endedEarly = false, spokenClose = "Thank you. This interview is over. I am preparing your report." } = {}) => {
-    if (!sessionIdRef.current || endingRef.current) return;
+    if (endingRef.current) return;
+    if (!sessionIdRef.current) {
+      const fallbackReport = buildLocalFallbackReport(endedEarly);
+      navigate(`/reports/${fallbackReport.session_id}`, {
+        replace: true,
+        state: {
+          report: fallbackReport,
+          context: payload,
+        },
+      });
+      return;
+    }
     endingRef.current = true;
     stopListening();
     setBusy(true);
@@ -350,20 +400,35 @@ function VoiceInterviewPage() {
         },
       });
     } catch (requestError) {
-      endingRef.current = false;
-      setError(
-        safeErrorText(
-          requestError.response?.data?.detail ||
-          requestError.response?.data ||
-          requestError.message ||
-          "Failed to complete the interview."
-        )
+      const requestMessage = safeErrorText(
+        requestError.response?.data?.detail ||
+        requestError.response?.data ||
+        requestError.message ||
+        "Failed to complete the interview."
       );
+
+      if (requestMessage.toLowerCase().includes("interview session not found")) {
+        const fallbackReport = buildLocalFallbackReport(endedEarly);
+        stopSpeech();
+        stopCamera();
+        await exitFullscreen();
+        navigate(`/reports/${fallbackReport.session_id}`, {
+          replace: true,
+          state: {
+            report: fallbackReport,
+            context: payload,
+          },
+        });
+        return;
+      }
+
+      endingRef.current = false;
+      setError(requestMessage);
       setStatus("Could not prepare the report.");
     } finally {
       setBusy(false);
     }
-  }, [navigate, payload, speak, stopSpeech]);
+  }, [buildLocalFallbackReport, navigate, payload, speak, stopSpeech]);
 
   const submitAnswer = async () => {
     const answer = clean(`${draftRef.current} ${interimRef.current}`);
@@ -450,8 +515,10 @@ function VoiceInterviewPage() {
       });
       const data = response.data || {};
       const outline = Array.isArray(data.question_outline) ? data.question_outline : [];
+      const nextSessionId = safeText(data.session_id);
 
-      setSessionId(safeText(data.session_id));
+      sessionIdRef.current = nextSessionId;
+      setSessionId(nextSessionId);
       setProviders(data.providers || {});
       setSessionMeta(data.meta || {});
       setQuestion(safeText(data.current_question));
@@ -589,22 +656,24 @@ function VoiceInterviewPage() {
 
   return (
     <div
+      className="mock-page reveal"
       ref={rootRef}
       style={{
         minHeight: "100vh",
         background: "linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%)",
         overflowY: "auto",
+        overflowX: "hidden",
       }}
     >
       <div style={{ maxWidth: 1380, margin: "0 auto", padding: "24px 20px 36px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
           <div>
             <div style={{ display: "inline-block", padding: "8px 14px", borderRadius: 999, background: "rgba(79,70,229,0.08)", color: "#4338ca", fontWeight: 800, fontSize: 12, textTransform: "uppercase" }}>
-              Voice Assistant
+              AI Interview Page
             </div>
-            <h1 style={{ margin: "14px 0 6px", color: "#1f2a44" }}>{title}</h1>
+            <h1 style={{ margin: "14px 0 6px", color: "#1f2a44" }}>{safeText(title) || "Interview"}</h1>
             <p style={{ margin: 0, color: "#5b6480", lineHeight: 1.6 }}>
-              The assistant will ask fundamentals, conceptual, and role-specific questions based on your selections and experience level.
+              Start the session, answer by voice, and let the assistant evaluate your response step by step.
             </p>
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -618,25 +687,15 @@ function VoiceInterviewPage() {
           </div>
         </div>
 
-        {error ? (
-          <div style={{ marginBottom: 18, padding: 14, borderRadius: 16, background: "rgba(239,68,68,0.08)", color: "#b91c1c", fontWeight: 700 }}>
-            {safeText(error)}
-          </div>
-        ) : null}
-
-        {fullscreenBlocked ? (
-          <div style={{ marginBottom: 18, padding: 18, borderRadius: 18, background: "#fff7ed", color: "#9a3412", display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-            <span>Fullscreen is required while the interview is running.</span>
-            <button className="mock-btn" onClick={restoreFullscreen}>Re-enter Fullscreen</button>
-          </div>
-        ) : null}
+        {error ? <div style={{ marginBottom: 18, padding: 14, borderRadius: 16, background: "rgba(239,68,68,0.08)", color: "#b91c1c", fontWeight: 700 }}>{safeText(error)}</div> : null}
+        {fullscreenBlocked ? <div style={{ marginBottom: 18, padding: 18, borderRadius: 18, background: "#fff7ed", color: "#9a3412", display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}><span>Fullscreen is required while the interview is running.</span><button className="mock-btn" onClick={restoreFullscreen}>Re-enter Fullscreen</button></div> : null}
 
         {!started ? (
           <div style={{ display: "grid", gridTemplateColumns: isCompactLayout ? "1fr" : "minmax(0,1.1fr) minmax(320px,0.9fr)", gap: 24, alignItems: "start" }}>
             <div style={{ background: "white", borderRadius: 28, padding: 28, boxShadow: "0 24px 60px rgba(88,107,176,0.14)" }}>
               <h2 style={{ marginTop: 0, color: "#1f2a44" }}>Ready for your AI interview</h2>
               <p style={{ color: "#4f5873", lineHeight: 1.8 }}>
-                Once the session begins, the assistant speaks each question, starts listening automatically, and evaluates your answer using the configured AI providers.
+                The assistant will speak each question, start listening automatically, and evaluate your answer using the configured AI providers.
               </p>
               <div style={{ display: "grid", gap: 12, marginTop: 18, color: "#4f5873" }}>
                 <div>Category: {safeText(payload.category)}</div>
@@ -655,17 +714,17 @@ function VoiceInterviewPage() {
             </div>
 
             <div style={{ background: "#111c42", color: "#eef2ff", borderRadius: 28, padding: 26 }}>
-              <h3 style={{ marginTop: 0 }}>How this works</h3>
+              <h3 style={{ marginTop: 0 }}>Session flow</h3>
               <div style={{ display: "grid", gap: 14, lineHeight: 1.7 }}>
                 <div>1. Start the session and enter fullscreen.</div>
-                <div>2. The assistant speaks the question and listens automatically.</div>
-                <div>3. Your response is evaluated for meaning, coverage, fundamentals, and relevance.</div>
-                <div>4. You can end the interview at any time and still get a full report.</div>
+                <div>2. The assistant asks the question aloud.</div>
+                <div>3. Your spoken response is captured automatically.</div>
+                <div>4. The AI evaluates your answer and continues the session.</div>
               </div>
             </div>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: isCompactLayout ? "1fr" : "minmax(300px,0.88fr) minmax(0,1.12fr)", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isCompactLayout ? "1fr" : "minmax(300px,0.9fr) minmax(0,1.1fr)", gap: 20, alignItems: "start" }}>
             <div style={{ display: "grid", gap: 18, minWidth: 0 }}>
               <div style={{ background: "#0f172a", padding: 18, borderRadius: 28 }}>
                 <video
@@ -684,7 +743,7 @@ function VoiceInterviewPage() {
                 />
                 <div style={{ marginTop: 14, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12, color: "#e2e8f0" }}>
                   <span>Question {Math.min(index + 1, total || 1)} of {total || 1}</span>
-                  <strong>{safeText(listening ? "Listening automatically" : status)}</strong>
+                  <strong>{safeText(aiSpeaking ? "Assistant speaking" : listening ? "Listening automatically" : status)}</strong>
                 </div>
                 <div style={{ marginTop: 12, color: "#cbd5e1", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <span>Question type: {safeText(questionType) || "Adaptive"}</span>
@@ -693,21 +752,13 @@ function VoiceInterviewPage() {
               </div>
 
               <div style={{ background: "white", borderRadius: 24, padding: 22, boxShadow: "0 20px 50px rgba(88,107,176,0.12)" }}>
-                <h3 style={{ marginTop: 0, color: "#1f2a44" }}>Providers</h3>
+                <h3 style={{ marginTop: 0, color: "#1f2a44" }}>Session providers</h3>
                 <div style={{ display: "grid", gap: 10, color: "#4f5873" }}>
                   <div>Generation: {safeText(providers.generation_provider) || "Pending"}</div>
                   <div>Evaluation: {safeText(providers.evaluation_provider) || "Pending"}</div>
                   <div>Summary: {safeText(providers.summary_provider) || "Pending"}</div>
                   <div>Answers reviewed: {history.length}</div>
-                </div>
-              </div>
-
-              <div style={{ background: "white", borderRadius: 24, padding: 22, boxShadow: "0 20px 50px rgba(88,107,176,0.12)" }}>
-                <h3 style={{ marginTop: 0, color: "#1f2a44" }}>Session guidance</h3>
-                <div style={{ color: "#4f5873", display: "grid", gap: 10 }}>
-                  <div>Auto listening: {SpeechRecognition ? "On" : "Unavailable"}</div>
                   <div>Difficulty: {safeText(sessionMeta.difficulty || payload.experience) || "Adaptive"}</div>
-                  <div>Focus: {safeText(payload.selected_options) || "General interview preparation"}</div>
                 </div>
               </div>
             </div>
@@ -715,27 +766,16 @@ function VoiceInterviewPage() {
             <div style={{ display: "grid", gap: 18, minWidth: 0 }}>
               <div style={{ background: "linear-gradient(135deg, #4338ca, #2563eb)", color: "white", borderRadius: 28, padding: 26 }}>
                 <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", opacity: 0.9 }}>Current question</div>
-                <h2 style={{ margin: "12px 0 0", lineHeight: 1.45, fontSize: isCompactLayout ? 24 : 30 }}>
-                  {safeText(question) || "Loading question..."}
-                </h2>
+                <h2 style={{ margin: "12px 0 0", lineHeight: 1.45, fontSize: isCompactLayout ? 24 : 30 }}>{safeText(question) || "Loading question..."}</h2>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 20 }}>
-                  <button className="mock-btn" onClick={() => askQuestion({ promptText: `Question ${index + 1}. ${safeText(question)}` })} style={{ background: "rgba(255,255,255,0.16)" }}>
-                    Repeat Question
-                  </button>
-                  <button className="mock-btn" onClick={startListening} disabled={busy || fullscreenBlocked || !SpeechRecognition} style={{ background: "rgba(255,255,255,0.16)" }}>
-                    Restart Listening
-                  </button>
+                  <button className="mock-btn" onClick={() => askQuestion({ promptText: `Question ${index + 1}. ${safeText(question)}` })} style={{ background: "rgba(255,255,255,0.16)" }}>Repeat Question</button>
+                  <button className="mock-btn" onClick={startListening} disabled={busy || fullscreenBlocked || !SpeechRecognition} style={{ background: "rgba(255,255,255,0.16)" }}>Restart Listening</button>
                 </div>
               </div>
 
               <div style={{ background: "white", borderRadius: 24, padding: 24, boxShadow: "0 20px 50px rgba(88,107,176,0.12)" }}>
                 <h3 style={{ marginTop: 0, color: "#1f2a44" }}>Your answer</h3>
-                <textarea
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Your spoken answer will appear here automatically. You can also refine it manually before submitting."
-                  style={{ width: "100%", minHeight: isCompactLayout ? 140 : 170, borderRadius: 18, border: "1px solid rgba(148,163,184,0.28)", padding: 16, resize: "vertical" }}
-                />
+                <textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Your spoken answer will appear here automatically. You can refine it before submitting." style={{ width: "100%", minHeight: isCompactLayout ? 140 : 170, borderRadius: 18, border: "1px solid rgba(148,163,184,0.28)", padding: 16, resize: "vertical" }} />
                 <div style={{ marginTop: 12, padding: 14, borderRadius: 16, background: "rgba(14,165,233,0.08)", color: "#0f5f82" }}>
                   Live transcript: {safeText(interim || transcript) || "Waiting for your answer..."}
                 </div>
@@ -743,25 +783,23 @@ function VoiceInterviewPage() {
                   <button className="mock-btn" onClick={submitAnswer} disabled={!clean(transcript) || busy || fullscreenBlocked} style={{ background: "linear-gradient(135deg, #059669, #10b981)" }}>
                     {busy ? "Processing..." : "Submit Now"}
                   </button>
-                  <button className="go-back-btn" onClick={() => { stopListening(); setDraft(""); setInterim(""); startListening(); }} disabled={busy}>
-                    Clear and Retry
-                  </button>
+                  <button className="go-back-btn" onClick={() => { stopListening(); setDraft(""); setInterim(""); startListening(); }} disabled={busy}>Clear and Retry</button>
                 </div>
-              </div>
 
-              {latestEval ? (
-                <div style={{ background: "white", borderRadius: 24, padding: 24, boxShadow: "0 20px 50px rgba(88,107,176,0.12)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                    <h3 style={{ margin: 0, color: "#1f2a44" }}>Latest evaluation</h3>
-                    <strong>Score {safeScore(latestEval.score)}/100</strong>
+                {latestEval ? (
+                  <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid rgba(148,163,184,0.22)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                      <h3 style={{ margin: 0, color: "#1f2a44" }}>Latest evaluation</h3>
+                      <strong>Score {safeScore(latestEval.score)}/100</strong>
+                    </div>
+                    <p style={{ color: "#4f5873", lineHeight: 1.7 }}>{safeText(latestEval.feedback)}</p>
+                    <div style={{ color: "#4f5873", display: "grid", gap: 8 }}>
+                      {latestEval.strengths.slice(0, 2).map((item) => <div key={item}>- {item}</div>)}
+                      {latestEval.gaps.slice(0, 2).map((item) => <div key={item}>- {item}</div>)}
+                    </div>
                   </div>
-                  <p style={{ color: "#4f5873", lineHeight: 1.7 }}>{safeText(latestEval.feedback)}</p>
-                  <div style={{ color: "#4f5873", display: "grid", gap: 8 }}>
-                    {latestEval.strengths.map((item) => <div key={item}>- {item}</div>)}
-                    {latestEval.gaps.map((item) => <div key={item}>- {item}</div>)}
-                  </div>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
           </div>
         )}
