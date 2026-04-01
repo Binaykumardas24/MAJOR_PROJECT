@@ -670,7 +670,22 @@ function Topics() {
 
                 <button
                   className="start-interview-confirm"
-                  onClick={() => navigate("/instructions")}
+                  onClick={() =>
+                    navigate("/instructions", {
+                      state: {
+                        category,
+                        selectedMode: confirmedSelection.mode,
+                        selectedOptions: confirmedSelection.options,
+                        experience: confirmedSelection.experience,
+                        configMode: confirmedSelection.configMode,
+                        questionCount: confirmedSelection.questionCount,
+                        customQuestionCount: confirmedSelection.customQuestionCount,
+                        practiceType: confirmedSelection.practiceType,
+                        interviewModeTime: confirmedSelection.interviewModeTime,
+                        timeModeInterval: confirmedSelection.timeModeInterval,
+                      }
+                    })
+                  }
                 >
                   Proceed to Instructions
                 </button>

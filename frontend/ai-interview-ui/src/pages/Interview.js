@@ -251,16 +251,7 @@ function Interview() {
 
   /* START INTERVIEW */
   const beginInterview = async () => {
-    try {
-      setError("");
-      await ensureFullscreenMode();
-      await startCameraAndMic();
-      setFullscreenRequired(false);
-      setStarted(true);
-    } catch (err) {
-      setError(err.message || "Fullscreen is required to start the interview. Please try again.");
-      console.error(err);
-    }
+    navigate("/voice-interview", { state: customContext });
   };
 
   useEffect(() => {

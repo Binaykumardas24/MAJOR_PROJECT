@@ -82,7 +82,7 @@ function Instructions() {
         <button
           className="mock-btn"
           style={{ background: "#5b21b6" }}
-          onClick={() => navigate("/permissions")}
+          onClick={() => navigate("/permissions", { state: location.state || {} })}
         >
           Continue to Next Step →
         </button>

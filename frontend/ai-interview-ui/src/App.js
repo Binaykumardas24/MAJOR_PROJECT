@@ -7,11 +7,13 @@ import Auth from "./pages/Auth";
 import Instructions from "./pages/Instructions";
 import Permissions from "./pages/Permissions";
 import Interview from "./pages/Interview";
+import VoiceInterviewPage from "./pages/VoiceInterviewPage";
 import EditProfile from "./pages/EditProfile";
 import Topics from "./pages/Topics";
-import Dashboard from "./pages/Dashboard";
+import DashboardPage from "./pages/DashboardPage";
 import ResumeInterview from "./pages/ResumeInterview";
 import AboutUs from "./pages/AboutUs";
+import Reports from "./pages/Reports";
 
 /* NEW CATEGORY PAGES */
 import HRInterview from "./pages/HRInterview";
@@ -132,6 +134,24 @@ function App() {
         />
 
         <Route
+          path="/voice-interview"
+          element={
+            <ProtectedRoute>
+              <VoiceInterviewPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/reports/:sessionId"
+          element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/resume-interview"
           element={
             <ProtectedRoute>
@@ -144,7 +164,7 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <DashboardPage />
             </ProtectedRoute>
           }
         />

@@ -233,7 +233,7 @@ function Permissions() {
   };
   const goProceed = () => {
     if (allPermissionsGranted) {
-      navigate("/interview");
+      navigate("/interview", { state: location.state || {} });
     }
   };
 
