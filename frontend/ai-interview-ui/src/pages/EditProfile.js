@@ -35,7 +35,7 @@ function EditProfile() {
 
   /* ---------- SAVE PROFILE ---------- */
   const handleSave = async () => {
-    // ❌ rule: last name alone not allowed
+    // rule: last name alone not allowed
     if (firstName.trim() === "" && lastName.trim() !== "") {
       alert("Fill out the first name first");
       return;
@@ -63,8 +63,8 @@ function EditProfile() {
       }
 
       // image logic
-      // null → confirmed remove
-      // base64 → update
+      // null -> confirmed remove
+      // base64 -> update
       if (profileImage === null) {
         payload.profile_image = "";
       } else if (profileImage !== storedUser?.profile_image) {
@@ -81,7 +81,7 @@ function EditProfile() {
         }
       );
 
-      // 🔴 IMPORTANT: merge + store intent
+      // IMPORTANT: merge + store intent
       const existingUser = JSON.parse(localStorage.getItem("user"));
       localStorage.setItem(
         "user",
