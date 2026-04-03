@@ -4,6 +4,10 @@ import axios from "axios";
 import "../App.css";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+const EARLY_END_CLOSING_MESSAGE = "Thank you for your time today. The interview is now over. I am ending the session and preparing your report.";
+const NATURAL_END_CLOSING_MESSAGE = "Thank you for your time today. This interview is now over. I am preparing your report.";
+const TIMER_END_CLOSING_MESSAGE = "The interview time is now over. Thank you for your time today. I am preparing your report.";
+const INTERVIEW_STORAGE_KEY = "voiceInterviewActiveSession";
 
 const clean = (value) => (value || "").replace(/\s+/g, " ").trim();
 const safeText = (value) => {
@@ -201,10 +205,64 @@ function buildPayload(context) {
   };
 }
 
+const isCanceledRequest = (error) =>
+  Boolean(axios.isCancel?.(error)) ||
+  error?.code === "ERR_CANCELED" ||
+  error?.name === "CanceledError";
+
+const readSavedInterview = () => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(INTERVIEW_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearSavedInterview = () => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(INTERVIEW_STORAGE_KEY);
+  } catch {}
+};
+
+const normalizeSavedSessionSnapshot = (snapshot) => {
+  if (!snapshot || typeof snapshot !== "object") return null;
+
+  return {
+    sessionId: safeText(snapshot.sessionId || snapshot.session_id),
+    providers: snapshot.providers && typeof snapshot.providers === "object" ? snapshot.providers : {},
+    question: safeText(snapshot.question || snapshot.current_question),
+    index: Number(snapshot.index ?? snapshot.current_index) || 0,
+    total: Number(snapshot.total ?? snapshot.total_questions) || 0,
+    draft: safeText(snapshot.draft),
+    interim: safeText(snapshot.interim),
+    latestEval: snapshot.latestEval || null,
+    history: Array.isArray(snapshot.history) ? snapshot.history : Array.isArray(snapshot.evaluations) ? snapshot.evaluations : [],
+    timeLeftSeconds:
+      snapshot.timeLeftSeconds == null || Number(snapshot.timeLeftSeconds) < 0
+        ? null
+        : Number(snapshot.timeLeftSeconds),
+    sessionMeta: snapshot.sessionMeta && typeof snapshot.sessionMeta === "object"
+      ? snapshot.sessionMeta
+      : snapshot.meta && typeof snapshot.meta === "object"
+        ? snapshot.meta
+        : {},
+    summary: snapshot.summary && typeof snapshot.summary === "object" ? snapshot.summary : null,
+  };
+};
+
 function VoiceInterview() {
   const navigate = useNavigate();
   const location = useLocation();
-  const context = location.state || {};
+  const savedInterviewRef = useRef(readSavedInterview());
+  const context = (location.state && Object.keys(location.state).length
+    ? location.state
+    : savedInterviewRef.current?.payload) || {};
   const payload = buildPayload(context);
   const SpeechRecognition =
     typeof window !== "undefined" ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
@@ -217,17 +275,24 @@ function VoiceInterview() {
   const timerRef = useRef(null);
   const sessionIdRef = useRef("");
   const indexRef = useRef(0);
+  const questionRef = useRef("");
   const draftRef = useRef("");
   const interimRef = useRef("");
   const busyRef = useRef(false);
   const summaryRef = useRef(null);
   const fullscreenBlockedRef = useRef(false);
+  const dialogOpenRef = useRef(false);
   const startedRef = useRef(false);
   const autoListenRef = useRef(false);
   const speakingRef = useRef(false);
   const endRequestedRef = useRef(false);
   const finalizingRef = useRef(false);
   const preferredVoiceRef = useRef(null);
+  const requestControllerRef = useRef(null);
+  const flowTokenRef = useRef(0);
+  const resumeModeRef = useRef("continue-answer");
+  const interruptInterviewFlowRef = useRef(() => {});
+  const finalizeEarlyExitRef = useRef(null);
 
   const [sessionId, setSessionId] = useState("");
   const [providers, setProviders] = useState({});
@@ -248,9 +313,39 @@ function VoiceInterview() {
   const [summary, setSummary] = useState(null);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(null);
   const [sessionMeta, setSessionMeta] = useState({});
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [showFullscreenPrompt, setShowFullscreenPrompt] = useState(false);
+  const [restoreNotice, setRestoreNotice] = useState("");
   const [viewportWidth, setViewportWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1440
   );
+  const dialogOpen = showEndConfirm || showFullscreenPrompt;
+
+  const applyRecoveredSession = (snapshot) => {
+    const normalized = normalizeSavedSessionSnapshot(snapshot);
+    if (!normalized?.sessionId) return false;
+
+    setSessionId(normalized.sessionId);
+    setProviders(normalized.providers);
+    setQuestion(normalized.question);
+    setIndex(normalized.index);
+    setTotal(normalized.total);
+    setDraft(normalized.draft);
+    setInterim(normalized.interim);
+    setStarted(true);
+    setBusy(false);
+    setListening(false);
+    setAiSpeaking(false);
+    setFullscreenBlocked(false);
+    setLatestEval(normalized.latestEval ? normalizeEvaluation(normalized.latestEval) : null);
+    setHistory(Array.isArray(normalized.history) ? normalized.history.map((item) => normalizeEvaluation(item)) : []);
+    setSummary(normalized.summary ? normalized.summary : null);
+    setTimeLeftSeconds(normalized.timeLeftSeconds);
+    setSessionMeta(normalized.sessionMeta);
+    setShowEndConfirm(false);
+    setShowFullscreenPrompt(false);
+    return true;
+  };
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
@@ -259,6 +354,10 @@ function VoiceInterview() {
   useEffect(() => {
     indexRef.current = index;
   }, [index]);
+
+  useEffect(() => {
+    questionRef.current = question;
+  }, [question]);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -281,6 +380,10 @@ function VoiceInterview() {
   }, [fullscreenBlocked]);
 
   useEffect(() => {
+    dialogOpenRef.current = dialogOpen;
+  }, [dialogOpen]);
+
+  useEffect(() => {
     startedRef.current = started;
   }, [started]);
 
@@ -289,6 +392,120 @@ function VoiceInterview() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    const saved = savedInterviewRef.current;
+    if (!saved || typeof saved !== "object") return;
+
+    const normalized = normalizeSavedSessionSnapshot(saved);
+    if (!normalized?.sessionId || normalized.summary) {
+      clearSavedInterview();
+      savedInterviewRef.current = null;
+      return;
+    }
+
+    applyRecoveredSession(normalized);
+    setStatus("Recovered your previous interview session.");
+    setRestoreNotice("A saved interview session was recovered. Re-enter fullscreen to continue from where you left off.");
+  }, []);
+
+  useEffect(() => {
+    const saved = savedInterviewRef.current;
+    const normalized = normalizeSavedSessionSnapshot(saved);
+    if (!normalized?.sessionId) return undefined;
+
+    let cancelled = false;
+
+    const syncSession = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/ai-interview/session/${normalized.sessionId}`);
+        if (cancelled) return;
+        const remote = response.data || {};
+
+        if (remote.is_complete && remote.summary) {
+          clearSavedInterview();
+          navigate(`/results/${normalized.sessionId}`, {
+            replace: true,
+            state: {
+              report: {
+                ...remote.summary,
+                session_id: normalized.sessionId,
+                ended_early: Boolean(remote.ended_early),
+                providers: remote.providers || {},
+                evaluations: Array.isArray(remote.evaluations) ? remote.evaluations.map((item) => normalizeEvaluation(item)) : [],
+                answers: remote.answers || [],
+                question_outline: remote.question_outline || [],
+                questions_answered: Number(remote.questions_answered || 0),
+                total_questions: Number(remote.total_questions || 0),
+                context: remote.context || payload,
+              },
+              context: remote.context || payload,
+            },
+          });
+          return;
+        }
+
+        applyRecoveredSession({
+          ...remote,
+          draft: normalized.draft,
+          interim: normalized.interim,
+          timeLeftSeconds: normalized.timeLeftSeconds,
+        });
+      } catch {}
+    };
+
+    void syncSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, payload]);
+
+  useEffect(() => {
+    if (!started || summary || !sessionId) {
+      if (summary || !started) {
+        clearSavedInterview();
+      }
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        INTERVIEW_STORAGE_KEY,
+        JSON.stringify({
+          payload,
+          sessionId,
+          providers,
+          question,
+          index,
+          total,
+          draft,
+          interim,
+          status,
+          history,
+          latestEval,
+          timeLeftSeconds,
+          sessionMeta,
+          savedAt: Date.now(),
+        })
+      );
+    } catch {}
+  }, [
+    draft,
+    history,
+    index,
+    interim,
+    latestEval,
+    payload,
+    providers,
+    question,
+    sessionId,
+    sessionMeta,
+    started,
+    status,
+    summary,
+    timeLeftSeconds,
+    total,
+  ]);
 
   useEffect(() => {
     if (!window.speechSynthesis) return undefined;
@@ -370,16 +587,24 @@ function VoiceInterview() {
     });
   };
 
+  const cancelActiveRequest = () => {
+    if (requestControllerRef.current) {
+      requestControllerRef.current.abort();
+      requestControllerRef.current = null;
+    }
+  };
+
   const stopSpeech = () => {
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     speakingRef.current = false;
     setAiSpeaking(false);
   };
 
-  const speak = (text) =>
+  const speak = (text, { flowToken = null } = {}) =>
     new Promise((resolve) => {
       const value = clean(text);
-      if (!value || !window.speechSynthesis) return resolve();
+      if (!value || !window.speechSynthesis) return resolve(true);
+      if (flowToken != null && flowToken !== flowTokenRef.current) return resolve(false);
       stopSpeech();
       const utterance = new SpeechSynthesisUtterance(value);
       const voice = preferredVoiceRef.current || pickGentleVoice(window.speechSynthesis.getVoices());
@@ -397,12 +622,12 @@ function VoiceInterview() {
       utterance.onend = () => {
         speakingRef.current = false;
         setAiSpeaking(false);
-        resolve();
+        resolve(flowToken == null || flowToken === flowTokenRef.current);
       };
       utterance.onerror = () => {
         speakingRef.current = false;
         setAiSpeaking(false);
-        resolve();
+        resolve(false);
       };
       window.speechSynthesis.speak(utterance);
     });
@@ -422,6 +647,24 @@ function VoiceInterview() {
     recognitionRef.current = null;
     setListening(false);
   };
+
+  const interruptInterviewFlow = () => {
+    flowTokenRef.current += 1;
+    stopListening();
+    stopSpeech();
+  };
+
+  const rememberResumeMode = () => {
+    resumeModeRef.current = speakingRef.current ? "repeat-question" : "continue-answer";
+  };
+
+  const isVoiceFlowActive = (flowToken) =>
+    flowToken === flowTokenRef.current &&
+    !dialogOpenRef.current &&
+    !fullscreenBlockedRef.current &&
+    !summaryRef.current &&
+    !endRequestedRef.current &&
+    !finalizingRef.current;
 
   const ensureFullscreen = async () => {
     if (document.fullscreenElement) return true;
@@ -485,10 +728,40 @@ function VoiceInterview() {
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
+  const runVoiceTurn = async ({ preface = "", prompt = "", restartListening = true } = {}) => {
+    const flowToken = flowTokenRef.current + 1;
+    flowTokenRef.current = flowToken;
+
+    if (preface) {
+      const prefaceFinished = await speak(preface, { flowToken });
+      if (!prefaceFinished || !isVoiceFlowActive(flowToken)) return false;
+    }
+
+    if (prompt) {
+      const promptFinished = await speak(prompt, { flowToken });
+      if (!promptFinished || !isVoiceFlowActive(flowToken)) return false;
+    }
+
+    if (!restartListening) {
+      return isVoiceFlowActive(flowToken);
+    }
+
+    if (!isVoiceFlowActive(flowToken)) return false;
+
+    if (SpeechRecognition) {
+      startListening();
+    } else {
+      setStatus("Speech recognition is unavailable. You can type and submit your answer.");
+    }
+
+    return true;
+  };
+
   const startListening = () => {
     if (
       !SpeechRecognition ||
       fullscreenBlockedRef.current ||
+      dialogOpenRef.current ||
       busyRef.current ||
       summaryRef.current ||
       endRequestedRef.current ||
@@ -503,7 +776,7 @@ function VoiceInterview() {
 
     recognition.onstart = () => {
       setListening(true);
-      setStatus("Listening...");
+      setStatus("Listening for your answer...");
     };
 
     recognition.onresult = (event) => {
@@ -517,11 +790,6 @@ function VoiceInterview() {
 
       if (clean(finalText)) setDraft((prev) => clean(`${prev} ${finalText}`));
       setInterim(clean(interimText));
-
-      if (clean(`${finalText} ${interimText}`)) {
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => submitAnswer(), 2200);
-      }
     };
 
     recognition.onerror = (event) => {
@@ -544,6 +812,7 @@ function VoiceInterview() {
         !busyRef.current &&
         !summaryRef.current &&
         !fullscreenBlockedRef.current &&
+        !dialogOpenRef.current &&
         !endRequestedRef.current &&
         !finalizingRef.current &&
         !speakingRef.current
@@ -556,6 +825,8 @@ function VoiceInterview() {
   };
 
   const finishInterview = async (activeSessionId, { endedEarly = false } = {}) => {
+    let controller = null;
+
     try {
       if (!activeSessionId) {
         const fallbackSummary = buildLocalFallbackSummary(endedEarly);
@@ -578,10 +849,12 @@ function VoiceInterview() {
         return;
       }
 
+      controller = new AbortController();
+      requestControllerRef.current = controller;
       const response = await axios.post(
         `${API_BASE_URL}/ai-interview/complete`,
         { session_id: activeSessionId, ended_early: endedEarly },
-        { headers: authHeaders() }
+        { headers: authHeaders(), signal: controller.signal }
       );
       const normalizedSummary = {
         ...response.data,
@@ -600,6 +873,8 @@ function VoiceInterview() {
       setStatus(endedEarly ? "Interview ended early." : "Interview completed.");
       openResultsPage(normalizedSummary, response.data?.session_id || activeSessionId);
     } catch (requestError) {
+      if (isCanceledRequest(requestError)) return;
+
       const message = safeErrorText(
         requestError.response?.data?.detail ||
         requestError.response?.data ||
@@ -616,6 +891,9 @@ function VoiceInterview() {
       setStatus(endedEarly ? "Interview ended early." : "Interview completed.");
       openResultsPage(fallbackSummary, fallbackSummary.session_id);
     } finally {
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+      }
       stopListening();
       stopSpeech();
       stopCamera();
@@ -624,19 +902,59 @@ function VoiceInterview() {
     }
   };
 
-  const finalizeEarlyExit = async () => {
+  const resumeInterviewAfterPause = async ({ restoredFullscreen = false } = {}) => {
+    if (
+      summaryRef.current ||
+      finalizingRef.current ||
+      !startedRef.current ||
+      dialogOpenRef.current ||
+      fullscreenBlockedRef.current
+    ) {
+      return;
+    }
+
+    if (resumeModeRef.current === "repeat-question") {
+      setStatus("Resuming interview...");
+      await runVoiceTurn({
+        preface: restoredFullscreen
+          ? "Fullscreen restored. I will repeat the current question."
+          : "Resuming the interview. I will repeat the current question.",
+        prompt: `Question ${indexRef.current + 1}. ${safeText(questionRef.current) || "Please continue."}`,
+      });
+      return;
+    }
+
+    setStatus("Resuming interview...");
+    await runVoiceTurn({
+      preface: restoredFullscreen
+        ? "Fullscreen restored. Please continue your answer."
+        : "Resuming the interview. Please continue your answer.",
+    });
+  };
+
+  const finalizeEarlyExit = async ({ closingMessage = EARLY_END_CLOSING_MESSAGE } = {}) => {
     if (finalizingRef.current || summaryRef.current) return;
     finalizingRef.current = true;
+    endRequestedRef.current = true;
+    dialogOpenRef.current = false;
+    setShowEndConfirm(false);
+    setShowFullscreenPrompt(false);
+    setFullscreenBlocked(false);
+    fullscreenBlockedRef.current = false;
     setBusy(true);
     setError("");
     setStatus("Ending interview and preparing your results...");
 
     try {
-      stopListening();
-      stopSpeech();
-      await speak("Thank you for attending this interview. I am ending the session now and preparing your results.");
+      interruptInterviewFlow();
+      cancelActiveRequest();
+      stopCamera();
+      await exitFullscreen();
+      await speak(closingMessage);
       await finishInterview(sessionIdRef.current, { endedEarly: true });
     } catch (requestError) {
+      if (isCanceledRequest(requestError)) return;
+
       setError(
         safeErrorText(
           requestError.response?.data?.detail ||
@@ -652,6 +970,9 @@ function VoiceInterview() {
     }
   };
 
+  interruptInterviewFlowRef.current = interruptInterviewFlow;
+  finalizeEarlyExitRef.current = finalizeEarlyExit;
+
   const submitAnswer = async () => {
     const answer = clean(`${draftRef.current} ${interimRef.current}`);
     if (!answer || !sessionIdRef.current || busyRef.current || summaryRef.current || finalizingRef.current) return;
@@ -662,11 +983,31 @@ function VoiceInterview() {
     setError("");
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/ai-interview/evaluate`, {
-        session_id: sessionIdRef.current,
-        question_index: indexRef.current,
-        answer,
-      });
+      const controller = new AbortController();
+      requestControllerRef.current = controller;
+      const response = await axios.post(
+        `${API_BASE_URL}/ai-interview/evaluate`,
+        {
+          session_id: sessionIdRef.current,
+          question_index: indexRef.current,
+          answer,
+        },
+        {
+          signal: controller.signal,
+        }
+      );
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+      }
+      if (
+        finalizingRef.current ||
+        summaryRef.current ||
+        dialogOpenRef.current ||
+        fullscreenBlockedRef.current ||
+        endRequestedRef.current
+      ) {
+        return;
+      }
 
       const result = {
         ...normalizeEvaluation(response.data),
@@ -685,13 +1026,10 @@ function VoiceInterview() {
         setTotal(progressTotal);
       }
 
-      if (endRequestedRef.current) {
-        await finalizeEarlyExit();
-        return;
-      }
-
       if (result.is_complete) {
-        await speak(result.assistant_reply || "Thank you. This interview is over.");
+        setDraft("");
+        setInterim("");
+        await speak(NATURAL_END_CLOSING_MESSAGE);
         await finishInterview(sessionIdRef.current);
       } else {
         const nextIndex = Number.isFinite(progressCurrent) && progressCurrent >= 0
@@ -701,11 +1039,17 @@ function VoiceInterview() {
         setQuestion(result.next_question || "");
         setDraft("");
         setInterim("");
-        await speak(result.assistant_reply || "Thank you. Let us continue.");
-        await speak(`Question ${nextIndex + 1}. ${result.next_question || "Please continue."}`);
-        startListening();
+        await runVoiceTurn({
+          preface: result.assistant_reply || "Thank you. Let us continue.",
+          prompt: `Question ${nextIndex + 1}. ${result.next_question || "Please continue."}`,
+        });
       }
     } catch (requestError) {
+      if (requestControllerRef.current?.signal?.aborted) {
+        requestControllerRef.current = null;
+      }
+      if (isCanceledRequest(requestError)) return;
+
       setError(
         safeErrorText(
           requestError.response?.data?.detail ||
@@ -715,10 +1059,6 @@ function VoiceInterview() {
         )
       );
       setStatus("Evaluation failed.");
-      if (endRequestedRef.current) {
-        await finalizeEarlyExit();
-        return;
-      }
     } finally {
       if (!finalizingRef.current) {
         setBusy(false);
@@ -736,12 +1076,17 @@ function VoiceInterview() {
     setInterim("");
     endRequestedRef.current = false;
     finalizingRef.current = false;
+    dialogOpenRef.current = false;
+    setShowEndConfirm(false);
+    setShowFullscreenPrompt(false);
+    setFullscreenBlocked(false);
     setStatus("Starting interview...");
     setQuestion("");
     setStarted(false);
 
     try {
       await ensureFullscreen();
+      setRestoreNotice("");
       setStatus("Preparing your AI interviewer, first question, and interview room...");
 
       const cameraSetup = startCamera()
@@ -749,9 +1094,15 @@ function VoiceInterview() {
         .then(() => null)
         .catch((cameraError) => cameraError);
 
+      const controller = new AbortController();
+      requestControllerRef.current = controller;
       const response = await axios.post(`${API_BASE_URL}/ai-interview/start`, payload, {
         headers: authHeaders(),
+        signal: controller.signal,
       });
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+      }
       const data = response.data;
       const cameraError = await cameraSetup;
       setSessionId(data.session_id);
@@ -769,10 +1120,13 @@ function VoiceInterview() {
           ? "Interview ready. Camera preview is unavailable, but the voice interview is starting now."
           : "Interview ready. Starting now."
       );
-      await speak(safeText(data.assistant_intro) || "Hello. Let us begin.");
-      await speak(`Question 1. ${safeText(data.current_question)}`);
-      startListening();
+      await runVoiceTurn({
+        preface: safeText(data.assistant_intro) || "Hello. Let us begin.",
+        prompt: `Question 1. ${safeText(data.current_question)}`,
+      });
     } catch (requestError) {
+      if (isCanceledRequest(requestError)) return;
+
       const mediaErrorName = requestError?.name || requestError?.cause?.name;
       const isMediaError =
         mediaErrorName === "NotAllowedError" ||
@@ -799,37 +1153,30 @@ function VoiceInterview() {
   const restoreFullscreen = async () => {
     try {
       await ensureFullscreen();
+      dialogOpenRef.current = false;
+      setShowFullscreenPrompt(false);
       setFullscreenBlocked(false);
+      fullscreenBlockedRef.current = false;
       setError("");
-      setStatus("Fullscreen restored. Continue your answer.");
-      await speak("Fullscreen restored. Please continue your answer.");
-      startListening();
+      setRestoreNotice("");
+      await resumeInterviewAfterPause({ restoredFullscreen: true });
     } catch (requestError) {
       setError(safeErrorText(requestError.message || "Fullscreen is required to continue."));
     }
   };
 
-  const handleEndInterview = async () => {
+  const handleEndInterview = () => {
     if (summaryRef.current || finalizingRef.current) {
       return;
     }
 
-    const confirmed = window.confirm("End the interview now and generate your report from the answers so far?");
-    if (!confirmed) return;
-
-    endRequestedRef.current = true;
-    setFullscreenBlocked(false);
-    fullscreenBlockedRef.current = false;
+    rememberResumeMode();
+    interruptInterviewFlow();
+    cancelActiveRequest();
+    dialogOpenRef.current = true;
     setError("");
-    stopSpeech();
-    stopListening();
-
-    if (busyRef.current) {
-      setStatus("Ending interview after the current step...");
-      return;
-    }
-
-    await finalizeEarlyExit();
+    setStatus("Interview paused while you confirm the next step.");
+    setShowEndConfirm(true);
   };
 
   const downloadReportPdf = () => {
@@ -901,20 +1248,40 @@ function VoiceInterview() {
     const onFullscreenChange = () => {
       if (!startedRef.current || summaryRef.current || endRequestedRef.current || finalizingRef.current) return;
       if (!document.fullscreenElement) {
-        stopListening();
-        stopSpeech();
+        rememberResumeMode();
+        interruptInterviewFlowRef.current?.();
+        cancelActiveRequest();
         setFullscreenBlocked(true);
+        fullscreenBlockedRef.current = true;
+        dialogOpenRef.current = true;
+        setShowEndConfirm(false);
+        setShowFullscreenPrompt(true);
         setStatus("Interview paused until fullscreen is restored.");
-        setError("Fullscreen was exited. Re-enter fullscreen to continue.");
+        setError("");
       }
     };
 
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    if (!started || summary || finalizingRef.current) return undefined;
+
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "Your interview is still running. Leaving now may interrupt the session.";
+      return event.returnValue;
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [started, summary]);
 
   useEffect(() => {
     return () => {
+      cancelActiveRequest();
+      flowTokenRef.current += 1;
       stopListening();
       stopSpeech();
       stopCamera();
@@ -929,7 +1296,7 @@ function VoiceInterview() {
   }, [started]);
 
   useEffect(() => {
-    if (!started || busy || fullscreenBlocked || summary || timeLeftSeconds == null || timeLeftSeconds <= 0) {
+    if (!started || busy || fullscreenBlocked || dialogOpen || summary || timeLeftSeconds == null || timeLeftSeconds <= 0) {
       return undefined;
     }
 
@@ -939,9 +1306,8 @@ function VoiceInterview() {
         if (previous <= 1) {
           window.clearInterval(intervalId);
           setStatus("Interview time completed.");
-          stopListening();
-          if (sessionIdRef.current && !summaryRef.current) {
-            finishInterview(sessionIdRef.current).catch(() => {
+          if (sessionIdRef.current && !summaryRef.current && !finalizingRef.current) {
+            finalizeEarlyExitRef.current?.({ closingMessage: TIMER_END_CLOSING_MESSAGE })?.catch(() => {
               setError("The interview timer ended, but the session summary could not be completed.");
             });
           }
@@ -952,11 +1318,35 @@ function VoiceInterview() {
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [started, busy, fullscreenBlocked, summary, timeLeftSeconds]);
+  }, [started, busy, fullscreenBlocked, dialogOpen, summary, timeLeftSeconds]);
+
+  useEffect(() => {
+    if (location.state || savedInterviewRef.current || started) return;
+
+    setError("Interview setup was missing. Please start a new interview from the previous screen.");
+    const timeoutId = window.setTimeout(() => {
+      navigate("/instructions", { replace: true });
+    }, 1600);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [location.state, navigate, started]);
 
   const transcript = clean(`${draft} ${interim}`);
   const title = payload.job_role || payload.primary_language || payload.category || "Interview";
   const isCompactLayout = viewportWidth < 1180;
+  const livePhase = fullscreenBlocked
+    ? "Paused"
+    : dialogOpen
+      ? "Awaiting action"
+      : busy
+        ? "Evaluating"
+        : aiSpeaking
+          ? "AI speaking"
+          : listening
+            ? "Mic live"
+            : started
+              ? "Standing by"
+              : "Ready";
   const reportEvaluations = summary?.evaluations || [];
   const answeredCount = reportEvaluations.length;
   const strongAnswerCount = reportEvaluations.filter((item) => (item.score || 0) >= 75).length;
@@ -989,7 +1379,7 @@ function VoiceInterview() {
     <div className="voice-ai-root" ref={rootRef}>
       <div className="voice-ai-orb voice-ai-orb-left" />
       <div className="voice-ai-orb voice-ai-orb-right" />
-      <div className="voice-ai-inner">
+      <div className={`voice-ai-inner ${dialogOpen ? "voice-ai-inner-blurred" : ""}`}>
         <div className="voice-ai-header">
           <div>
             <div className="voice-ai-badge">Live Interview</div>
@@ -999,9 +1389,11 @@ function VoiceInterview() {
             </p>
           </div>
           <div className="voice-ai-actions">
-            <button className="go-back-btn" onClick={() => navigate(-1)}>
-              Back
-            </button>
+            {!started ? (
+              <button className="go-back-btn" onClick={() => navigate(-1)}>
+                Back
+              </button>
+            ) : null}
             {!started ? (
               <button className="mock-btn" onClick={() => navigate("/")}>
                 Home
@@ -1019,13 +1411,8 @@ function VoiceInterview() {
           <div className="voice-ai-alert voice-ai-alert-error">{safeText(error)}</div>
         ) : null}
 
-        {fullscreenBlocked ? (
-          <div className="voice-ai-alert voice-ai-alert-warn">
-            <span>Fullscreen is required while the interview is running.</span>
-            <button className="mock-btn" onClick={restoreFullscreen}>
-              Re-enter Fullscreen
-            </button>
-          </div>
+        {restoreNotice ? (
+          <div className="voice-ai-alert voice-ai-alert-warn">{safeText(restoreNotice)}</div>
         ) : null}
 
         {!started ? (
@@ -1086,6 +1473,10 @@ function VoiceInterview() {
                   <span>Difficulty: {safeText(sessionMeta.difficulty || payload.experience) || "Adaptive"}</span>
                   <span>Timer: {timerLabel}</span>
                 </div>
+                <div className="voice-ai-submeta-row">
+                  <span>Session state: {livePhase}</span>
+                  <span>{listening ? "Waiting for your response" : "No silence countdown active"}</span>
+                </div>
               </div>
 
               <div className="voice-ai-panel voice-ai-mini-panel voice-ai-hud-panel">
@@ -1108,6 +1499,8 @@ function VoiceInterview() {
                   <div className="voice-ai-hud-item"><span>Answers</span><strong>{history.length}</strong></div>
                   <div className="voice-ai-hud-item"><span>Listening</span><strong>{SpeechRecognition ? "Auto" : "Manual"}</strong></div>
                   <div className="voice-ai-hud-item"><span>Focus</span><strong>{safeText(payload.selected_options) || "General"}</strong></div>
+                  <div className="voice-ai-hud-item"><span>Live state</span><strong>{livePhase}</strong></div>
+                  <div className="voice-ai-hud-item"><span>Silence timer</span><strong>Off</strong></div>
                 </div>
               </div>
             </div>
@@ -1119,7 +1512,16 @@ function VoiceInterview() {
                   {safeText(question) || "Loading question..."}
                 </h2>
                 <div className="voice-ai-inline-actions">
-                  <button className="mock-btn" onClick={() => speak(`Question ${index + 1}. ${safeText(question)}`)} style={{ background: "rgba(255,255,255,0.16)" }}>
+                  <button
+                    className="mock-btn"
+                    onClick={() => {
+                      interruptInterviewFlow();
+                      void runVoiceTurn({
+                        prompt: `Question ${index + 1}. ${safeText(question)}`,
+                      });
+                    }}
+                    style={{ background: "rgba(255,255,255,0.16)" }}
+                  >
                     Repeat Question
                   </button>
                   <button className="mock-btn" onClick={startListening} disabled={busy || fullscreenBlocked || Boolean(summary)} style={{ background: "rgba(255,255,255,0.16)" }}>
@@ -1306,6 +1708,63 @@ function VoiceInterview() {
           </div>
         ) : null}
       </div>
+      {dialogOpen ? (
+        <div className="voice-ai-modal-overlay">
+          {showEndConfirm ? (
+            <div className="voice-ai-modal-card">
+              <div className="voice-ai-modal-eyebrow">Confirm Exit</div>
+              <h2 className="voice-ai-modal-title">Are you sure you want to end this interview?</h2>
+              <p className="voice-ai-modal-copy">
+                The interview will stop immediately, fullscreen will close, and your report will be generated from the answers captured so far.
+              </p>
+              <div className="voice-ai-modal-actions">
+                <button
+                  className="go-back-btn"
+                  onClick={() => {
+                    dialogOpenRef.current = false;
+                    setShowEndConfirm(false);
+                    void resumeInterviewAfterPause();
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="mock-btn"
+                  onClick={() => {
+                    void finalizeEarlyExit({ closingMessage: EARLY_END_CLOSING_MESSAGE });
+                  }}
+                  style={{ background: "linear-gradient(135deg, #dc2626, #f97316)" }}
+                >
+                  Confirm End Interview
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {showFullscreenPrompt ? (
+            <div className="voice-ai-modal-card">
+              <div className="voice-ai-modal-eyebrow">Fullscreen Required</div>
+              <h2 className="voice-ai-modal-title">The interview is paused because fullscreen mode was exited.</h2>
+              <p className="voice-ai-modal-copy">
+                Continue in fullscreen mode to resume from where the interview was paused, or exit now to end the interview and see your report.
+              </p>
+              <div className="voice-ai-modal-actions">
+                <button
+                  className="go-back-btn"
+                  onClick={() => {
+                    void finalizeEarlyExit({ closingMessage: EARLY_END_CLOSING_MESSAGE });
+                  }}
+                >
+                  Exit and End Interview
+                </button>
+                <button className="mock-btn" onClick={restoreFullscreen}>
+                  Continue in Fullscreen
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

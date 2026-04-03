@@ -27,6 +27,8 @@ from interview_ai import (
     evaluate_interview_answer,
     get_ai_provider_status,
     get_session_payload,
+    get_session_status,
+    mark_session_report_saved,
 )
 
 app = FastAPI()
@@ -341,6 +343,19 @@ async def ai_provider_status():
         raise HTTPException(status_code=500, detail=f"Failed to inspect AI providers: {exc}")
 
 
+@app.get("/ai-interview/session/{session_id}")
+async def ai_interview_session_status(session_id: str):
+    try:
+        session = get_session_status(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Interview session not found")
+        return session
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to load interview session: {exc}")
+
+
 @app.post("/ai-interview/evaluate")
 async def evaluate_ai_interview_answer(
     session_id: str = Body(...),
@@ -371,35 +386,39 @@ async def complete_ai_interview(
             token = authorization.replace("Bearer ", "")
             try:
                 current_user = await get_current_user(token)
+                current_user_id = str(current_user["_id"])
+                saved_user_ids = session.setdefault("saved_report_user_ids", [])
 
-                interview_result = {
-                    "session_id": session_id,
-                    "category": session.get("context", {}).get("category") or "general",
-                    "selected_mode": session.get("context", {}).get("selected_mode"),
-                    "job_role": session.get("context", {}).get("job_role"),
-                    "primary_language": session.get("context", {}).get("primary_language"),
-                    "experience": session.get("context", {}).get("experience"),
-                    "context": session.get("context", {}),
-                    "score": summary.get("overall_score", 0),
-                    "ended_early": summary.get("ended_early", False),
-                    "summary": summary.get("summary"),
-                    "top_strengths": summary.get("top_strengths", []),
-                    "improvement_areas": summary.get("improvement_areas", []),
-                    "strongest_questions": summary.get("strongest_questions", []),
-                    "needs_work_questions": summary.get("needs_work_questions", []),
-                    "providers": summary.get("providers"),
-                    "answers": session.get("answers", []),
-                    "evaluations": session.get("evaluations", []),
-                    "questions_answered": len(session.get("evaluations", [])),
-                    "total_questions": len(session.get("questions", [])),
-                    "question_outline": session.get("question_outline", summary.get("questions", [])),
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }
+                if current_user_id not in saved_user_ids:
+                    interview_result = {
+                        "session_id": session_id,
+                        "category": session.get("context", {}).get("category") or "general",
+                        "selected_mode": session.get("context", {}).get("selected_mode"),
+                        "job_role": session.get("context", {}).get("job_role"),
+                        "primary_language": session.get("context", {}).get("primary_language"),
+                        "experience": session.get("context", {}).get("experience"),
+                        "context": session.get("context", {}),
+                        "score": summary.get("overall_score", 0),
+                        "ended_early": summary.get("ended_early", False),
+                        "summary": summary.get("summary"),
+                        "top_strengths": summary.get("top_strengths", []),
+                        "improvement_areas": summary.get("improvement_areas", []),
+                        "strongest_questions": summary.get("strongest_questions", []),
+                        "needs_work_questions": summary.get("needs_work_questions", []),
+                        "providers": summary.get("providers"),
+                        "answers": session.get("answers", []),
+                        "evaluations": session.get("evaluations", []),
+                        "questions_answered": len(session.get("evaluations", [])),
+                        "total_questions": len(session.get("questions", [])),
+                        "question_outline": session.get("question_outline", summary.get("questions", [])),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
 
-                await users_collection.update_one(
-                    {"_id": current_user["_id"]},
-                    {"$push": {"interview_results": interview_result}},
-                )
+                    await users_collection.update_one(
+                        {"_id": current_user["_id"]},
+                        {"$push": {"interview_results": interview_result}},
+                    )
+                    session = mark_session_report_saved(session_id, current_user_id) or session
             except Exception as save_exc:
                 save_warning = f"Interview completed, but saving the report failed: {save_exc}"
 

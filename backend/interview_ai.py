@@ -1925,6 +1925,51 @@ def _scored_evaluations(session: Dict[str, Any]) -> List[Dict[str, Any]]:
     ]
 
 
+def _is_session_completed(session: Dict[str, Any]) -> bool:
+    return bool(session.get("completed_at")) and isinstance(session.get("summary"), dict)
+
+
+def _session_total_questions(session: Dict[str, Any]) -> int:
+    adaptive_state = session.get("meta", {}).get("adaptive_state") or {}
+    return (
+        _adaptive_total_questions(session)
+        if adaptive_state.get("enabled")
+        else len(session.get("questions", []))
+    )
+
+
+def _build_session_status_payload(session: Dict[str, Any]) -> Dict[str, Any]:
+    questions = session.get("questions", []) or []
+    evaluations = session.get("evaluations", []) or []
+    answers = session.get("answers", []) or []
+    current_index = min(len(evaluations), max(0, len(questions) - 1)) if questions else 0
+    current_question = questions[current_index]["question"] if questions else ""
+    current_question_type = questions[current_index].get("question_type", "practical") if questions else "practical"
+
+    return {
+        "session_id": session.get("session_id"),
+        "created_at": session.get("created_at"),
+        "completed_at": session.get("completed_at"),
+        "ended_early": bool(session.get("ended_early", False)),
+        "is_complete": _is_session_completed(session),
+        "assistant_intro": session.get("assistant_intro", ""),
+        "providers": dict(session.get("providers", {})),
+        "meta": dict(session.get("meta", {})),
+        "context": dict(session.get("context", {})),
+        "question_outline": session.get("question_outline", []),
+        "questions": questions,
+        "answers": answers,
+        "evaluations": evaluations,
+        "current_index": current_index,
+        "current_question": current_question,
+        "current_question_type": current_question_type,
+        "questions_answered": len(evaluations),
+        "total_questions": _session_total_questions(session),
+        "summary": session.get("summary"),
+        "saved_report_user_ids": list(session.get("saved_report_user_ids", [])),
+    }
+
+
 async def _create_adaptive_interview_session(
     payload: Dict[str, Any],
     question_count: int,
@@ -1964,6 +2009,7 @@ async def _create_adaptive_interview_session(
             "interview_variation": variation,
         },
         "question_outline": [],
+        "saved_report_user_ids": [],
     }
 
     first_question = _append_session_question(
@@ -2370,6 +2416,7 @@ Rules:
             }
             for question in questions
         ],
+        "saved_report_user_ids": [],
     }
     INTERVIEW_SESSIONS[session_id] = session
     _persist_session(session)
@@ -2393,6 +2440,8 @@ async def evaluate_interview_answer(
     session = _get_session(session_id)
     if not session:
         raise ProviderError("Interview session not found.")
+    if _is_session_completed(session):
+        raise ProviderError("Interview session is already complete.")
 
     questions = session["questions"]
     if question_index < 0 or question_index >= len(questions):
@@ -2579,6 +2628,31 @@ async def complete_interview_session(session_id: str, ended_early: bool = False)
     if not session:
         raise ProviderError("Interview session not found.")
 
+    if _is_session_completed(session):
+        cached_summary = dict(session.get("summary") or {})
+        existing_ended_early = bool(session.get("ended_early", False))
+        resolved_ended_early = bool(ended_early or existing_ended_early)
+        session["ended_early"] = resolved_ended_early
+        _persist_session(session)
+        adaptive_state = session.get("meta", {}).get("adaptive_state") or {}
+        evaluations = _scored_evaluations(session)
+        return {
+            **cached_summary,
+            "session_id": session_id,
+            "ended_early": resolved_ended_early,
+            "questions_answered": len(session.get("evaluations", [])),
+            "total_questions": _session_total_questions(session),
+            "questions": [
+                {
+                    "question": item["question"],
+                    "question_type": item.get("question_type", "practical"),
+                    "score": item["score"],
+                }
+                for item in evaluations
+            ],
+            "providers": session.get("providers", {}),
+        }
+
     evaluations = _scored_evaluations(session)
     context_summary = _context_summary(session.get("context", {}))
     adaptive_state = session.get("meta", {}).get("adaptive_state") or {}
@@ -2638,7 +2712,7 @@ Return valid JSON:
         "session_id": session_id,
         "ended_early": bool(ended_early),
         "questions_answered": len(session.get("evaluations", [])),
-        "total_questions": _adaptive_total_questions(session) if adaptive_state.get("enabled") else len(session.get("questions", [])),
+        "total_questions": _session_total_questions(session),
         "questions": [
             {
                 "question": item["question"],
@@ -2653,3 +2727,23 @@ Return valid JSON:
 
 def get_session_payload(session_id: str) -> Optional[Dict[str, Any]]:
     return _get_session(session_id)
+
+
+def get_session_status(session_id: str) -> Optional[Dict[str, Any]]:
+    session = _get_session(session_id)
+    if not session:
+        return None
+    return _build_session_status_payload(session)
+
+
+def mark_session_report_saved(session_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+    session = _get_session(session_id)
+    normalized_user_id = _normalize_text(user_id)
+    if not session or not normalized_user_id:
+        return session
+
+    saved_user_ids = session.setdefault("saved_report_user_ids", [])
+    if normalized_user_id not in saved_user_ids:
+        saved_user_ids.append(normalized_user_id)
+        _persist_session(session)
+    return session
