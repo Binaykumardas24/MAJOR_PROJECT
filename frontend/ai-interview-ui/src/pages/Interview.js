@@ -3,32 +3,29 @@ import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import "../App.css";
 
-// default fallback questions
 const DEFAULT_QUESTIONS = [
   "Tell me about yourself.",
   "What are your strengths?",
   "Explain a challenging project you worked on."
 ];
+const VOICE_INTERVIEW_STORAGE_KEY = "voiceInterviewActiveSession";
 
 function Interview() {
   const navigate = useNavigate();
   const location = useLocation();
-  const customContext = location.state || {}; // { jobRole, resumeText }
+  const customContext = location.state || {};
   const interviewRootRef = useRef(null);
 
-  // decide if the selected job role is 'technical'
   const isTechnicalRole = customContext.jobRole
     ? /engineer|developer|data|technical|scientist/i.test(customContext.jobRole)
     : false;
 
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
 
-  // generate questions if resume/job role provided
   useEffect(() => {
     if (customContext.jobRole) {
       let list = [];
 
-      // if resume text exists, add an introductory prompt referencing it
       if (customContext.resumeText) {
         const snippet = customContext.resumeText.slice(0, 120).replace(/\s+/g, " ");
         list.push(`I reviewed your resume which mentions: "${snippet}..." Tell me more about that.`);
@@ -54,6 +51,7 @@ function Interview() {
       setQuestions(list);
     }
   }, [customContext.jobRole, customContext.resumeText, isTechnicalRole]);
+
   const videoRef = useRef(null);
   const cameraStreamRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -66,7 +64,6 @@ function Interview() {
   const [transcript, setTranscript] = useState("");
   const [fullscreenRequired, setFullscreenRequired] = useState(false);
 
-  /* TEXT TO SPEECH */
   const speak = (text) =>
     new Promise((resolve) => {
       window.speechSynthesis.cancel();
@@ -76,7 +73,6 @@ function Interview() {
       window.speechSynthesis.speak(utterance);
     });
 
-  /* CAMERA + MIC */
   const startCameraAndMic = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -95,10 +91,7 @@ function Interview() {
       return true;
     }
 
-    const target =
-      interviewRootRef.current ||
-      document.documentElement;
-
+    const target = interviewRootRef.current || document.documentElement;
     const requestFullscreen =
       target.requestFullscreen ||
       target.webkitRequestFullscreen ||
@@ -143,7 +136,6 @@ function Interview() {
     }
   };
 
-  /* SAVE INTERVIEW RESULT */
   const saveInterviewResult = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -155,11 +147,11 @@ function Interview() {
           user_id: user.id,
           category: customContext.jobRole || "general",
           score: Math.floor(Math.random() * 100),
-          transcript: transcript,
+          transcript,
           questions_answered: questions.length
         },
         {
-          headers: { Authorization: "Bearer " + token }
+          headers: { Authorization: `Bearer ${token}` }
         }
       );
     } catch (err) {
@@ -167,7 +159,6 @@ function Interview() {
     }
   };
 
-  /* STOP & NEXT */
   const stopListening = useCallback(async () => {
     recognitionRef.current?.stop();
     clearTimeout(silenceTimerRef.current);
@@ -181,24 +172,18 @@ function Interview() {
     } else {
       setStatus("Interview completed.");
       await speak("Your interview is completed. Thank you.");
-
-      // Save result
       saveInterviewResult();
       await exitFullscreenMode();
-
-      // Navigate to results after 2 seconds
       setTimeout(() => navigate("/"), 2000);
     }
-  }, [currentIndex, navigate, transcript, saveInterviewResult]);
+  }, [currentIndex, navigate, questions.length, transcript]);
 
-  /* SPEECH RECOGNITION */
   const startListening = useCallback(() => {
     if (fullscreenRequired) {
       return;
     }
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setError("Speech Recognition not supported. Use Chrome.");
@@ -211,17 +196,17 @@ function Interview() {
     recognition.interimResults = true;
 
     recognitionRef.current = recognition;
-    setStatus("🎤 Listening...");
+    setStatus("Listening...");
 
     recognition.onresult = (event) => {
       let interimTranscript = "";
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript_part = event.results[i][0].transcript;
+        const transcriptPart = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          setTranscript((prev) => prev + " " + transcript_part);
+          setTranscript((prev) => `${prev} ${transcriptPart}`.trim());
         } else {
-          interimTranscript += transcript_part;
+          interimTranscript += transcriptPart;
         }
       }
 
@@ -235,7 +220,6 @@ function Interview() {
     recognition.start();
   }, [fullscreenRequired, stopListening]);
 
-  /* MAIN FLOW */
   useEffect(() => {
     if (!started) return;
     if (fullscreenRequired) return;
@@ -249,9 +233,18 @@ function Interview() {
     run();
   }, [started, currentIndex, fullscreenRequired, startListening, questions]);
 
-  /* START INTERVIEW */
   const beginInterview = async () => {
-    navigate("/voice-interview", { state: customContext });
+    try {
+      window.localStorage.removeItem(VOICE_INTERVIEW_STORAGE_KEY);
+    } catch {}
+
+    navigate("/voice-interview", {
+      state: {
+        ...customContext,
+        forceFreshSession: true,
+        startSource: "interview-page"
+      }
+    });
   };
 
   useEffect(() => {
@@ -271,7 +264,6 @@ function Interview() {
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, [started]);
 
-  /* CLEANUP */
   useEffect(() => {
     return () => {
       cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -282,172 +274,169 @@ function Interview() {
   }, []);
 
   return (
-    <div className="mock-page reveal" ref={interviewRootRef}>
-      {/* TOP NAV */}
-      <div style={{
-        padding: "16px 40px",
-        background: "rgba(30, 30, 47, 0.9)",
-        color: "white",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
+    <div
+      className="mock-page reveal"
+      ref={interviewRootRef}
+      style={{ minHeight: "100vh", display: "flex", flexDirection: "column", paddingBottom: 0 }}
+    >
+      <div
+        style={{
+          padding: "16px 40px",
+          background: "rgba(30, 30, 47, 0.9)",
+          color: "white",
+          display: "flex",
+          justifyContent: "flex-start",
+          alignItems: "center"
+        }}
+      >
         <h3 style={{ margin: 0 }}>Live Interview</h3>
-        <div style={{
-          fontSize: 14,
-          padding: "6px 14px",
-          background: "rgba(255,255,255,0.15)",
-          borderRadius: "6px"
-        }}>
-          Question {currentIndex + 1} of {questions.length}
-        </div>
       </div>
 
-      {error && <div style={{ color: "red", padding: "20px", textAlign: "center", fontWeight: "bold" }}>{error}</div>}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {error && <div style={{ color: "red", padding: "20px", textAlign: "center", fontWeight: "bold" }}>{error}</div>}
 
-      {fullscreenRequired && (
-        <div
-          style={{
-            maxWidth: 900,
-            margin: "20px auto 0",
-            padding: "18px 20px",
-            background: "#fff7ed",
-            border: "1px solid #fdba74",
-            borderRadius: "12px",
-            color: "#9a3412",
-            textAlign: "center",
-            boxShadow: "0 10px 24px rgba(249, 115, 22, 0.12)"
-          }}
-        >
-          <div style={{ fontWeight: 800, marginBottom: 8 }}>Fullscreen Required</div>
-          <div style={{ marginBottom: 14 }}>
-            The interview is paused because fullscreen mode was exited. Please re-enter fullscreen to continue.
-          </div>
-          <button
-            className="mock-btn"
-            style={{ marginTop: 0, background: "#ea580c", padding: "12px 24px" }}
-            onClick={restoreFullscreenMode}
+        {fullscreenRequired && (
+          <div
+            style={{
+              maxWidth: 900,
+              margin: "20px auto 0",
+              padding: "18px 20px",
+              background: "#fff7ed",
+              border: "1px solid #fdba74",
+              borderRadius: "12px",
+              color: "#9a3412",
+              textAlign: "center",
+              boxShadow: "0 10px 24px rgba(249, 115, 22, 0.12)"
+            }}
           >
-            Re-enter Fullscreen
-          </button>
-        </div>
-      )}
-
-      {!started ? (
-        <div className="mock-section" style={{ maxHeight: "80vh", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "center" }}>
-            <h1>Ready to Start Your Interview?</h1>
-            <p style={{ fontSize: 16, color: "#555", marginTop: 12 }}>
-              You'll be asked {questions.length} questions. Speak clearly, stay in fullscreen mode, and take a moment to think before answering.
-            </p>
-
+            <div style={{ fontWeight: 800, marginBottom: 8 }}>Fullscreen Required</div>
+            <div style={{ marginBottom: 14 }}>
+              The interview is paused because fullscreen mode was exited. Please re-enter fullscreen to continue.
+            </div>
             <button
               className="mock-btn"
-              style={{ background: "#5b21b6", marginTop: 24, padding: "16px 32px", fontSize: 16 }}
-              onClick={beginInterview}
+              style={{ marginTop: 0, background: "#ea580c", padding: "12px 24px" }}
+              onClick={restoreFullscreenMode}
             >
-              🎙️ Start Interview
-            </button>
-
-            <button
-              className="go-back-btn"
-              onClick={() => {
-                // if interview was started via resume flow, return there with state
-                if (customContext && (customContext.resumeText || customContext.jobRole)) {
-                  navigate("/resume-interview", { state: customContext });
-                } else {
-                  navigate(-1);
-                }
-              }}
-            >
-              ← Go Back
+              Re-enter Fullscreen
             </button>
           </div>
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, padding: "40px", maxWidth: 1200, margin: "0 auto" }}>
-          {/* LEFT: VIDEO */}
-          <div>
-            <div style={{ background: "black", borderRadius: "12px", overflow: "hidden", marginBottom: 12 }}>
-              <video
-                ref={videoRef}
-                width="100%"
-                height="auto"
-                autoPlay
-                playsInline
-                style={{ display: "block", minHeight: "300px" }}
-              />
-            </div>
-            <p style={{ textAlign: "center", fontSize: 13, color: "#666" }}>Your camera feed</p>
-          </div>
+        )}
 
-          {/* RIGHT: QUESTION & TRANSCRIPT */}
-          <div>
-            {/* QUESTION CARD */}
-            <div style={{
-              background: "linear-gradient(135deg, #ede9fe, #f5f3ff)",
-              padding: "24px",
-              borderRadius: "12px",
-              marginBottom: "20px"
-            }}>
-              <h3 style={{ margin: "0 0 12px 0" }}>📝 Question {currentIndex + 1}</h3>
-              <p style={{ fontSize: 16, fontWeight: "500", margin: 0 }}>{questions[currentIndex]}</p>
-            </div>
-
-            {/* STATUS */}
-            <div style={{
-              padding: "16px",
-              background: "#f3f4f6",
-              borderRadius: "8px",
-              marginBottom: "20px",
-              fontSize: 14
-            }}>
-              <strong>Status:</strong> <span style={{ color: status.includes("Listening") ? "#059669" : "#666" }}>{status}</span>
-            </div>
-
-            {/* TRANSCRIPT */}
-            <div style={{
-              padding: "16px",
-              background: "white",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              minHeight: "150px",
-              maxHeight: "200px",
-              overflow: "auto",
-              fontSize: 14,
-              lineHeight: "1.6"
-            }}>
-              <strong>Your Answer:</strong>
-              <p style={{ margin: "12px 0 0 0", color: transcript ? "#333" : "#999" }}>
-                {transcript || "Your response will appear here..."}
+        {!started ? (
+          <div className="mock-section" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div style={{ maxWidth: 620, margin: "0 auto", textAlign: "center" }}>
+              <h1>Ready to Start Your Interview?</h1>
+              <p style={{ fontSize: 16, color: "#555", marginTop: 12 }}>
+                Speak clearly, stay in fullscreen mode, and let the AI interviewer guide the session.
               </p>
+
+              <button
+                className="mock-btn"
+                style={{ background: "#5b21b6", marginTop: 24, padding: "16px 32px", fontSize: 16 }}
+                onClick={beginInterview}
+              >
+                Start Interview
+              </button>
+
+              <button
+                className="go-back-btn"
+                onClick={() => {
+                  if (customContext && (customContext.resumeText || customContext.jobRole)) {
+                    navigate("/resume-interview", { state: customContext });
+                  } else {
+                    navigate(-1);
+                  }
+                }}
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, padding: "40px", maxWidth: 1200, margin: "0 auto" }}>
+            <div>
+              <div style={{ background: "black", borderRadius: "12px", overflow: "hidden", marginBottom: 12 }}>
+                <video
+                  ref={videoRef}
+                  width="100%"
+                  height="auto"
+                  autoPlay
+                  playsInline
+                  style={{ display: "block", minHeight: "300px" }}
+                />
+              </div>
+              <p style={{ textAlign: "center", fontSize: 13, color: "#666" }}>Your camera feed</p>
             </div>
 
-            {/* ACTION BUTTON */}
-            <button
-              onClick={stopListening}
-              disabled={status === "Processing answer..." || fullscreenRequired}
-              style={{
-                width: "100%",
-                marginTop: "20px",
-                padding: "12px",
-                background: "#059669",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                fontWeight: "600",
-                cursor: "pointer",
-                opacity: status === "Processing answer..." || fullscreenRequired ? 0.6 : 1
-              }}
-            >
-              ✓ Done with this question
-            </button>
-          </div>
-        </div>
-      )}
+            <div>
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #ede9fe, #f5f3ff)",
+                  padding: "24px",
+                  borderRadius: "12px",
+                  marginBottom: "20px"
+                }}
+              >
+                <h3 style={{ margin: "0 0 12px 0" }}>Question {currentIndex + 1}</h3>
+                <p style={{ fontSize: 16, fontWeight: "500", margin: 0 }}>{questions[currentIndex]}</p>
+              </div>
 
-      {/* FOOTER */}
-      <div className="bottom-footer">
+              <div
+                style={{
+                  padding: "16px",
+                  background: "#f3f4f6",
+                  borderRadius: "8px",
+                  marginBottom: "20px",
+                  fontSize: 14
+                }}
+              >
+                <strong>Status:</strong> <span style={{ color: status.includes("Listening") ? "#059669" : "#666" }}>{status}</span>
+              </div>
+
+              <div
+                style={{
+                  padding: "16px",
+                  background: "white",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                  minHeight: "150px",
+                  maxHeight: "200px",
+                  overflow: "auto",
+                  fontSize: 14,
+                  lineHeight: "1.6"
+                }}
+              >
+                <strong>Your Answer:</strong>
+                <p style={{ margin: "12px 0 0 0", color: transcript ? "#333" : "#999" }}>
+                  {transcript || "Your response will appear here..."}
+                </p>
+              </div>
+
+              <button
+                onClick={stopListening}
+                disabled={status === "Processing answer..." || fullscreenRequired}
+                style={{
+                  width: "100%",
+                  marginTop: "20px",
+                  padding: "12px",
+                  background: "#059669",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  opacity: status === "Processing answer..." || fullscreenRequired ? 0.6 : 1
+                }}
+              >
+                Done with this question
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="footer" style={{ marginTop: "auto", marginBottom: 0 }}>
         Interview in progress - Stay focused and speak clearly
       </div>
     </div>

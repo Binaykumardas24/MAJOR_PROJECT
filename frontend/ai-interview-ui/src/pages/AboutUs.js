@@ -3,12 +3,10 @@ import {
   BarChart3,
   Brain,
   Github,
-  Globe2,
   Instagram,
   Layers3,
   Linkedin,
   Mic,
-  Radar,
   Rocket,
   Sparkles,
   Target,
@@ -70,7 +68,7 @@ function AboutUs() {
   return (
     <>
       <Navbar />
-      <div className="about-lab-shell">
+      <div className="about-lab-shell about-lab-shell-light">
         <div className="about-lab-aurora about-lab-aurora-one" />
         <div className="about-lab-aurora about-lab-aurora-two" />
         <div className="about-lab-noise" />
@@ -128,6 +126,18 @@ function AboutUs() {
                   <BarChart3 size={16} />
                   <span>Live feedback</span>
                 </div>
+                <div className="about-lab-float-card about-lab-float-card-four">
+                  <Target size={16} />
+                  <span>Role focus</span>
+                </div>
+                <div className="about-lab-float-card about-lab-float-card-five">
+                  <Sparkles size={16} />
+                  <span>Confidence boost</span>
+                </div>
+                <div className="about-lab-float-card about-lab-float-card-six">
+                  <Layers3 size={16} />
+                  <span>Smart practice loops</span>
+                </div>
 
                 <div className="about-lab-wave-grid">
                   {Array.from({ length: 18 }).map((_, index) => (
@@ -135,6 +145,42 @@ function AboutUs() {
                   ))}
                 </div>
               </div>
+            </div>
+          </section>
+
+          <section className="about-lab-developers">
+            <div className="about-lab-developers-copy">
+              <span className="about-lab-chip">Developers</span>
+              <h2>Developer placeholders in a single animated lineup.</h2>
+              <p>
+                This section presents the team placeholders as one clean developer row with circular identity markers, hovering
+                cards, and social icon placeholders.
+              </p>
+            </div>
+
+            <div className="about-lab-developers-grid">
+              {developerCards.map((developer) => (
+                <article key={developer.id} className="about-lab-builder-card">
+                  <div className="about-lab-builder-avatar">{developer.id}</div>
+                  <h3>{developer.role}</h3>
+                  <p>{developer.note}</p>
+                  <div className="about-lab-builder-socials" aria-label={`${developer.role} social placeholders`}>
+                    {socialIcons.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={`${developer.id}-${item.label}`}
+                          type="button"
+                          className="about-lab-social-button"
+                          aria-label={`${item.label} placeholder`}
+                        >
+                          <Icon size={16} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
 
@@ -171,20 +217,44 @@ function AboutUs() {
             <div className="about-lab-panel about-lab-panel-illustration">
               <div className="about-lab-panel-screen">
                 <div className="about-lab-panel-screen-top">
-                  <span>Signal map</span>
-                  <Globe2 size={16} />
+                  <span>AI system bot</span>
+                  <Brain size={16} />
                 </div>
-                <div className="about-lab-node about-lab-node-main">
-                  <Radar size={18} />
+                <div className="about-lab-bot-illustration" aria-hidden="true">
+                  <div className="about-lab-bot-orb about-lab-bot-orb-one" />
+                  <div className="about-lab-bot-orb about-lab-bot-orb-two" />
+                  <div className="about-lab-bot-ring about-lab-bot-ring-one" />
+                  <div className="about-lab-bot-ring about-lab-bot-ring-two" />
+                  <div className="about-lab-bot-speech about-lab-bot-speech-one">
+                    <strong>Voice-led interviews</strong>
+                    <span>Practice naturally with an AI interviewer.</span>
+                  </div>
+                  <div className="about-lab-bot-speech about-lab-bot-speech-two">
+                    <strong>Adaptive AI feedback</strong>
+                    <span>Get smarter evaluation after every answer.</span>
+                  </div>
+                  <div className="about-lab-bot-speech about-lab-bot-speech-three">
+                    <strong>Reports and growth</strong>
+                    <span>Track progress through reports and dashboard insights.</span>
+                  </div>
+                  <div className="about-lab-bot-body">
+                    <div className="about-lab-bot-head">
+                      <div className="about-lab-bot-antenna" />
+                      <div className="about-lab-bot-face">
+                        <span className="about-lab-bot-eye" />
+                        <span className="about-lab-bot-eye" />
+                      </div>
+                      <div className="about-lab-bot-mouth" />
+                    </div>
+                    <div className="about-lab-bot-chest">
+                      <Brain size={34} />
+                    </div>
+                    <div className="about-lab-bot-arm about-lab-bot-arm-left" />
+                    <div className="about-lab-bot-arm about-lab-bot-arm-right" />
+                    <div className="about-lab-bot-leg about-lab-bot-leg-left" />
+                    <div className="about-lab-bot-leg about-lab-bot-leg-right" />
+                  </div>
                 </div>
-                <div className="about-lab-node about-lab-node-a" />
-                <div className="about-lab-node about-lab-node-b" />
-                <div className="about-lab-node about-lab-node-c" />
-                <div className="about-lab-node about-lab-node-d" />
-                <div className="about-lab-link about-lab-link-a" />
-                <div className="about-lab-link about-lab-link-b" />
-                <div className="about-lab-link about-lab-link-c" />
-                <div className="about-lab-link about-lab-link-d" />
               </div>
             </div>
           </section>
@@ -220,42 +290,6 @@ function AboutUs() {
                   <strong>{card.step}</strong>
                   <h3>{card.title}</h3>
                   <p>{card.description}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="about-lab-developers">
-            <div className="about-lab-developers-copy">
-              <span className="about-lab-chip">Developers</span>
-              <h2>Developer placeholders in a single animated lineup.</h2>
-              <p>
-                This section presents the team placeholders as one clean developer row with circular identity markers, hovering
-                cards, and social icon placeholders.
-              </p>
-            </div>
-
-            <div className="about-lab-developers-grid">
-              {developerCards.map((developer) => (
-                <article key={developer.id} className="about-lab-builder-card">
-                  <div className="about-lab-builder-avatar">{developer.id}</div>
-                  <h3>{developer.role}</h3>
-                  <p>{developer.note}</p>
-                  <div className="about-lab-builder-socials" aria-label={`${developer.role} social placeholders`}>
-                    {socialIcons.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <button
-                          key={`${developer.id}-${item.label}`}
-                          type="button"
-                          className="about-lab-social-button"
-                          aria-label={`${item.label} placeholder`}
-                        >
-                          <Icon size={16} />
-                        </button>
-                      );
-                    })}
-                  </div>
                 </article>
               ))}
             </div>

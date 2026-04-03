@@ -2,12 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
-  ArrowRight,
   ArrowUpRight,
   Brain,
   Briefcase,
   CheckCircle2,
-  Clock3,
   Gauge,
   Lightbulb,
   LineChart as LineChartIcon,
@@ -641,14 +639,15 @@ function DashboardPage() {
         report,
       };
     });
+    const recentHeroReports = recentReports.slice(0, 3);
 
     return {
       accuracyTrend,
       greeting,
+      recentHeroReports,
       interviewMix,
       latestReport,
       profileSummary,
-      recentReports,
       recommendation,
       recommendedState,
       statCards,
@@ -662,10 +661,10 @@ function DashboardPage() {
   const {
     accuracyTrend,
     greeting,
+    recentHeroReports,
     interviewMix,
     latestReport,
     profileSummary,
-    recentReports,
     recommendation,
     recommendedState,
     statCards,
@@ -722,25 +721,45 @@ function DashboardPage() {
                 </div>
                 <div className="dashboard-profile-hero-stat">
                   <span>Status</span>
-                  <strong>{profileSummary.status}</strong>
+                  <strong className="dashboard-profile-hero-status">
+                    <span className="dashboard-profile-hero-status__dot" aria-hidden="true" />
+                    {profileSummary.status}
+                  </strong>
                 </div>
               </div>
             </div>
           </div>
           <div className="dashboard-hero-card__aside">
-            <div className="dashboard-status-pill">
-              <Sparkles size={16} />
-              Synced with your latest reports
-            </div>
-            <div className="dashboard-mini-metrics">
-              <div>
-                <span>Latest score</span>
-                <strong>{latestReport ? `${safeScore(latestReport.overall_score)}%` : "--"}</strong>
+            <div className="dashboard-hero-history">
+              <div className="dashboard-hero-history__header">
+                <span className="dashboard-panel__eyebrow">Recent history</span>
+                <h3>Recent interviews</h3>
               </div>
-              <div>
-                <span>Top track</span>
-                <strong>{topTopics[0]?.topic || "General"}</strong>
-              </div>
+
+              {recentHeroReports.length ? (
+                <div className="dashboard-hero-history__list">
+                  {recentHeroReports.map((row) => (
+                    <button
+                      key={`hero-${row.id}`}
+                      type="button"
+                      className="dashboard-hero-history__item"
+                      onClick={() => navigate(`/reports/${row.report.session_id}`, { state: { report: row.report } })}
+                    >
+                      <div className="dashboard-hero-history__meta">
+                        <span className="dashboard-chip dashboard-chip-primary">{row.modeLabel}</span>
+                        <strong>{row.sessionLabel}</strong>
+                      </div>
+                      <div className="dashboard-hero-history__score">
+                        <span className={`dashboard-score-pill dashboard-score-pill-${row.scoreTone}`}>{row.score}%</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="dashboard-hero-history__empty">
+                  Complete an interview and your recent history will appear here.
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -1033,54 +1052,6 @@ function DashboardPage() {
             </section>
 
             <section className="dashboard-results-grid">
-              <article className="dashboard-panel dashboard-panel-large">
-                <div className="dashboard-panel__header">
-                  <div>
-                    <span className="dashboard-panel__eyebrow">History</span>
-                    <h2>Previous results</h2>
-                  </div>
-                </div>
-
-                <p className="dashboard-section-copy">Open a past interview to inspect detailed feedback, answer quality, and improvement areas.</p>
-
-                <div className="dashboard-results-list">
-                  {recentReports.length ? (
-                    recentReports.map((row) => (
-                      <button
-                        key={row.id}
-                        type="button"
-                        className="dashboard-result-row"
-                        onClick={() => navigate(`/reports/${row.report.session_id}`, { state: { report: row.report } })}
-                      >
-                        <div className="dashboard-result-row__main">
-                          <div className="dashboard-result-row__chips">
-                            <span className="dashboard-chip dashboard-chip-primary">{row.modeLabel}</span>
-                            <span className="dashboard-chip">
-                              <Clock3 size={12} />
-                              {row.duration}
-                            </span>
-                          </div>
-                          <div className="dashboard-result-row__title">{row.sessionLabel}</div>
-                          <div className="dashboard-result-row__summary">{row.summary}</div>
-                        </div>
-
-                        <div className="dashboard-result-row__side">
-                          <span className={`dashboard-score-pill dashboard-score-pill-${row.scoreTone}`}>{row.score}%</span>
-                          <span className="dashboard-result-row__action">
-                            View details
-                            <ArrowRight size={14} />
-                          </span>
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="dashboard-empty-state dashboard-empty-state-large">
-                      No past reports yet. Complete an interview and your history will appear here.
-                    </div>
-                  )}
-                </div>
-              </article>
-
               <div className="dashboard-side-stack">
                 <article className="dashboard-panel dashboard-highlight-panel">
                   <div className="dashboard-panel__header">

@@ -8,6 +8,13 @@ const EARLY_END_CLOSING_MESSAGE = "Thank you for your time today. The interview 
 const NATURAL_END_CLOSING_MESSAGE = "Thank you for your time today. This interview is now over. I am preparing your report.";
 const TIMER_END_CLOSING_MESSAGE = "The interview time is now over. Thank you for your time today. I am preparing your report.";
 const INTERVIEW_STORAGE_KEY = "voiceInterviewActiveSession";
+const STARTUP_STAGE_MESSAGES = [
+  "Setting up interview environment",
+  "Preparing camera and microphone access",
+  "Preparing your AI interviewer",
+  "Loading your first question",
+  "Starting your interview session",
+];
 
 const clean = (value) => (value || "").replace(/\s+/g, " ").trim();
 const safeText = (value) => {
@@ -256,10 +263,13 @@ const normalizeSavedSessionSnapshot = (snapshot) => {
   };
 };
 
+const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
 function VoiceInterview() {
   const navigate = useNavigate();
   const location = useLocation();
-  const savedInterviewRef = useRef(readSavedInterview());
+  const forceFreshSession = Boolean(location.state?.forceFreshSession);
+  const savedInterviewRef = useRef(forceFreshSession ? null : readSavedInterview());
   const context = (location.state && Object.keys(location.state).length
     ? location.state
     : savedInterviewRef.current?.payload) || {};
@@ -316,6 +326,10 @@ function VoiceInterview() {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showFullscreenPrompt, setShowFullscreenPrompt] = useState(false);
   const [restoreNotice, setRestoreNotice] = useState("");
+  const [startupActive, setStartupActive] = useState(false);
+  const [startupMessage, setStartupMessage] = useState(STARTUP_STAGE_MESSAGES[0]);
+  const [interviewEntering, setInterviewEntering] = useState(false);
+  const [startupMessageVisible, setStartupMessageVisible] = useState(true);
   const [viewportWidth, setViewportWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1440
   );
@@ -394,6 +408,12 @@ function VoiceInterview() {
   }, []);
 
   useEffect(() => {
+    if (!forceFreshSession) return;
+    clearSavedInterview();
+    savedInterviewRef.current = null;
+  }, [forceFreshSession]);
+
+  useEffect(() => {
     const saved = savedInterviewRef.current;
     if (!saved || typeof saved !== "object") return;
 
@@ -407,7 +427,7 @@ function VoiceInterview() {
     applyRecoveredSession(normalized);
     setStatus("Recovered your previous interview session.");
     setRestoreNotice("A saved interview session was recovered. Re-enter fullscreen to continue from where you left off.");
-  }, []);
+  }, [forceFreshSession]);
 
   useEffect(() => {
     const saved = savedInterviewRef.current;
@@ -458,7 +478,7 @@ function VoiceInterview() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, payload]);
+  }, [forceFreshSession, navigate, payload]);
 
   useEffect(() => {
     if (!started || summary || !sessionId) {
@@ -523,6 +543,23 @@ function VoiceInterview() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!startupActive) return undefined;
+
+    setStartupMessageVisible(true);
+    let messageIndex = 0;
+    const intervalId = window.setInterval(() => {
+      setStartupMessageVisible(false);
+      window.setTimeout(() => {
+        messageIndex = (messageIndex + 1) % STARTUP_STAGE_MESSAGES.length;
+        setStartupMessage(STARTUP_STAGE_MESSAGES[messageIndex]);
+        setStartupMessageVisible(true);
+      }, 260);
+    }, 1700);
+
+    return () => window.clearInterval(intervalId);
+  }, [startupActive]);
 
   const resolveTimerMinutes = () => {
     if (payload.config_mode === "time" && payload.time_mode_interval) {
@@ -1080,13 +1117,19 @@ function VoiceInterview() {
     setShowEndConfirm(false);
     setShowFullscreenPrompt(false);
     setFullscreenBlocked(false);
+    setStartupActive(true);
+    setStartupMessage(STARTUP_STAGE_MESSAGES[0]);
+    setStartupMessageVisible(true);
+    setInterviewEntering(false);
     setStatus("Starting interview...");
     setQuestion("");
     setStarted(false);
 
     try {
+      setStartupMessage("Entering fullscreen interview room");
       await ensureFullscreen();
       setRestoreNotice("");
+      setStartupMessage(STARTUP_STAGE_MESSAGES[1]);
       setStatus("Preparing your AI interviewer, first question, and interview room...");
 
       const cameraSetup = startCamera()
@@ -1096,6 +1139,7 @@ function VoiceInterview() {
 
       const controller = new AbortController();
       requestControllerRef.current = controller;
+      setStartupMessage(STARTUP_STAGE_MESSAGES[2]);
       const response = await axios.post(`${API_BASE_URL}/ai-interview/start`, payload, {
         headers: authHeaders(),
         signal: controller.signal,
@@ -1120,6 +1164,14 @@ function VoiceInterview() {
           ? "Interview ready. Camera preview is unavailable, but the voice interview is starting now."
           : "Interview ready. Starting now."
       );
+      setStartupMessage(STARTUP_STAGE_MESSAGES[3]);
+      await wait(250);
+      setStartupMessage(STARTUP_STAGE_MESSAGES[4]);
+      await wait(350);
+      setStartupActive(false);
+      setInterviewEntering(true);
+      await wait(650);
+      setInterviewEntering(false);
       await runVoiceTurn({
         preface: safeText(data.assistant_intro) || "Hello. Let us begin.",
         prompt: `Question 1. ${safeText(data.current_question)}`,
@@ -1145,6 +1197,7 @@ function VoiceInterview() {
       setStarted(false);
       setQuestion("");
       setStatus("Interview could not start.");
+      setStartupActive(false);
     } finally {
       setBusy(false);
     }
@@ -1379,7 +1432,7 @@ function VoiceInterview() {
     <div className="voice-ai-root" ref={rootRef}>
       <div className="voice-ai-orb voice-ai-orb-left" />
       <div className="voice-ai-orb voice-ai-orb-right" />
-      <div className={`voice-ai-inner ${dialogOpen ? "voice-ai-inner-blurred" : ""}`}>
+      <div className={`voice-ai-inner ${dialogOpen ? "voice-ai-inner-blurred" : ""} ${interviewEntering ? "voice-ai-inner-entering" : ""}`}>
         <div className="voice-ai-header">
           <div>
             <div className="voice-ai-badge">Live Interview</div>
@@ -1763,6 +1816,29 @@ function VoiceInterview() {
               </div>
             </div>
           ) : null}
+        </div>
+      ) : null}
+      {startupActive ? (
+        <div className="voice-ai-startup-overlay">
+          <div className="voice-ai-startup-orb voice-ai-startup-orb-one" />
+          <div className="voice-ai-startup-orb voice-ai-startup-orb-two" />
+          <div className="voice-ai-startup-minimal">
+            <div className="voice-ai-startup-shell">
+              <div className="voice-ai-startup-ring voice-ai-startup-ring-one" />
+              <div className="voice-ai-startup-ring voice-ai-startup-ring-two" />
+              <div className="voice-ai-startup-core">
+                <div className="voice-ai-startup-eye voice-ai-startup-eye-left" />
+                <div className="voice-ai-startup-eye voice-ai-startup-eye-right" />
+                <div className="voice-ai-startup-mouth" />
+              </div>
+              <div className="voice-ai-startup-node voice-ai-startup-node-left" />
+              <div className="voice-ai-startup-node voice-ai-startup-node-right" />
+              <div className="voice-ai-startup-node voice-ai-startup-node-bottom" />
+            </div>
+            <div className={`voice-ai-startup-line ${startupMessageVisible ? "is-visible" : ""}`}>
+              {startupMessage}
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

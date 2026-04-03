@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../App.css";
+import apisLogo from "../assets/logo.png";
 
-// axios instance with configurable base url
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_BASE || "http://127.0.0.1:8000"
 });
@@ -73,7 +73,6 @@ function Auth() {
   return (
     <div className="auth-bg">
       <div className="auth-panel">
-        {/* Left Panel */}
         <div className="auth-left">
           <svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="cloud-large">
             <path d="M110 220C170 220 220 170 220 110C220 50 170 0 110 0C50 0 0 50 0 110C0 170 50 220 110 220Z" fill="#fff" fillOpacity="0.18" />
@@ -82,14 +81,13 @@ function Auth() {
             <path d="M60 120C93.1371 120 120 93.1371 120 60C120 26.8629 93.1371 0 60 0C26.8629 0 0 26.8629 0 60C0 93.1371 26.8629 120 60 120Z" fill="#fff" fillOpacity="0.12" />
           </svg>
           <div className="rocket-circle">
-            <span className="rocket-icon">🚀</span>
+            <img src={apisLogo} alt="APIS" className="auth-apis-logo" />
           </div>
           <h2 className="auth-title">Welcome to<br />APIS</h2>
           <p className="auth-desc">
             Learn your skills and career, communicate, and discover new opportunities with our AI-powered interview system.
           </p>
         </div>
-        {/* Right Panel */}
         <div className="auth-right">
           <div className="auth-card">
             {isLogin ? (
@@ -122,7 +120,7 @@ function Auth() {
                       className="auth-eye"
                       onClick={() => setShowPassword((prev) => !prev)}
                     >
-                      {showPassword ? '🙈' : '👁️'}
+                      {showPassword ? "Hide" : "Show"}
                     </span>
                   </div>
                   <div className="auth-btn-row">
@@ -191,7 +189,7 @@ function Auth() {
                       className="auth-eye"
                       onClick={() => setShowPassword((prev) => !prev)}
                     >
-                      {showPassword ? '🙈' : '👁️'}
+                      {showPassword ? "Hide" : "Show"}
                     </span>
                   </div>
                   <div className="auth-field auth-password">
@@ -207,13 +205,13 @@ function Auth() {
                       className="auth-eye"
                       onClick={() => setShowConfirm((prev) => !prev)}
                     >
-                      {showConfirm ? '🙈' : '👁️'}
+                      {showConfirm ? "Hide" : "Show"}
                     </span>
                   </div>
                   <div className="auth-agree">
                     <input type="checkbox" required className="auth-checkbox" />
                     <span className="auth-agree-text">
-                      By Signing Up, I agree with <a href="#" className="auth-link">Terms & Conditions</a>
+                      By Signing Up, I agree with <button type="button" className="auth-inline-link">Terms & Conditions</button>
                     </span>
                   </div>
                   <div className="auth-btn-row">
