@@ -98,14 +98,14 @@ function ResumeInterview() {
           onClick={() => navigate("/")}
           style={{ padding: "6px 12px" }}
         >
-          🏠 Home
+          Home
         </button>
       </div>
 
       {/* hero */}
       <div className="mock-hero resume-hero">
         <div style={{ maxWidth: 720 }}>
-          <h1>Resume‑based Interview</h1>
+          <h1>Resume-based Interview</h1>
           <p>
             Upload your resume and pick a role, and we'll craft questions
             that align with your experience and targets.
@@ -147,7 +147,7 @@ function ResumeInterview() {
                   className="go-back-btn"
                   onClick={() => navigate(-1)}
                 >
-                  ← Go Back
+                  Back
                 </button>
               </div>
             </>
@@ -168,7 +168,7 @@ function ResumeInterview() {
                   style={{ background: "rgba(255,255,255,0.15)", color: "#1e1e2f", minWidth: 100 }}
                   onClick={() => setStage("upload")}
                 >
-                  ← Change File
+                  Change File
                 </button>
                 <button
                   className="mock-btn"
@@ -176,7 +176,7 @@ function ResumeInterview() {
                   onClick={() => setStage("role")}
                   disabled={!resumeText}
                 >
-                  Next →
+                  Next
                 </button>
               </div>
             </>
@@ -203,7 +203,7 @@ function ResumeInterview() {
                   disabled={!jobRole}
                   onClick={startInterview}
                 >
-                  Start Interview →
+                  Start Interview
                 </button>
 
                 <button
@@ -211,7 +211,7 @@ function ResumeInterview() {
                   style={{ background: "rgba(255,255,255,0.15)", color: "#1e1e2f", width: "50%" }}
                   onClick={() => setStage("preview")}
                 >
-                  ← Back
+                  Back
                 </button>
               </div>
             </>

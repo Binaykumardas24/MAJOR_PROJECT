@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import ImageCropModal from "./ImageCropModal";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
 import logo from "../assets/logo.png";
 import axios from "axios";
@@ -85,18 +85,20 @@ function Navbar() {
     <nav className="navbar">
       <div className="navbar-inner">
         <div className="navbar-left">
-          <img
-            src={logo}
-            alt="APIS Logo"
-            className="navbar-logo"
-          />
+          <Link to="/" className="navbar-home-link" onClick={closeMobileMenu}>
+            <img
+              src={logo}
+              alt="APIS Logo"
+              className="navbar-logo"
+            />
 
-          <div className="navbar-brand">
-            <div className="navbar-brand-title">
-              <h2>APIS</h2>
-              <span>| AI Powered Interview System</span>
+            <div className="navbar-brand">
+              <div className="navbar-brand-title">
+                <h2>APIS</h2>
+                <span>| AI Powered Interview System</span>
+              </div>
             </div>
-          </div>
+          </Link>
         </div>
 
         <div className={`navbar-center ${mobileOpen ? "mobile-open" : ""}`}>
@@ -110,7 +112,6 @@ function Navbar() {
             >
               Home
             </button>
-            <span className="nav-separator">|</span>
             <button
               className={`nav-link ${location.pathname === "/hr-interview" ? "active" : ""}`}
               onClick={() => {
@@ -120,7 +121,6 @@ function Navbar() {
             >
               Practice
             </button>
-            <span className="nav-separator">|</span>
             <button
               className={`nav-link ${location.pathname === "/dashboard" ? "active" : ""}`}
               onClick={() => {
@@ -130,7 +130,6 @@ function Navbar() {
             >
               Dashboard
             </button>
-            <span className="nav-separator">|</span>
             <button
               className={`nav-link ${location.pathname === "/resume-interview" ? "active" : ""}`}
               onClick={() => {
@@ -140,7 +139,6 @@ function Navbar() {
             >
               Resume Analyzer
             </button>
-            <span className="nav-separator">|</span>
             <button
               className={`nav-link ${location.pathname === "/about" ? "active" : ""}`}
               onClick={() => {
@@ -153,7 +151,7 @@ function Navbar() {
           </div>
         </div>
 
-        <div className="nav-right">
+        <div className="nav-right navbar-right">
           <button
             className={`navbar-toggle ${mobileOpen ? "open" : ""}`}
             onClick={toggleMobileMenu}

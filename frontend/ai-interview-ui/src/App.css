@@ -837,6 +837,61 @@ button {
   justify-content: space-between;
 }
 
+.navbar {
+  width: 100%;
+  min-height: 80px;
+}
+
+.navbar .navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.navbar .navbar-brand-title {
+  min-width: 0;
+}
+
+.navbar .navbar-brand-title span {
+  white-space: nowrap;
+}
+
+.navbar .navbar-center {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 8px;
+}
+
+.navbar .nav-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.navbar .navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.navbar .nav-link {
+  padding: 8px 9px;
+  white-space: nowrap;
+  font-size: 13px;
+  flex: 0 1 auto;
+}
+
 .category-topnav .navbar-center {
   flex: 1;
   justify-content: center;
@@ -860,6 +915,14 @@ button {
 
 .navbar-left {
   gap: 14px;
+}
+
+.navbar-home-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: inherit;
+  text-decoration: none;
 }
 
 .navbar-logo {
@@ -1027,6 +1090,71 @@ button {
 .nav-separator {
   color: rgba(255, 255, 255, 0.5);
   font-weight: 600;
+}
+
+/* Main navbar should mirror mini navbar alignment:
+   brand left, nav centered, profile/sign-in right. */
+.navbar {
+  padding: 0;
+  width: 100%;
+  min-height: 80px;
+}
+
+.navbar .navbar-inner {
+  width: 100%;
+  max-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 80px;
+  padding: 0 36px;
+  gap: 16px;
+}
+
+.navbar .navbar-left {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.navbar .navbar-center {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 8px;
+}
+
+.navbar .navbar-center .nav-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+}
+
+.navbar .nav-right.navbar-right {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navbar .nav-right.navbar-right > button:not(.navbar-toggle) {
+  white-space: nowrap;
+}
+
+.navbar .nav-link {
+  white-space: nowrap;
+  flex: 0 1 auto;
+  padding: 8px 9px;
+  font-size: 13px;
 }
 
 /* Right side of navbar */
@@ -9373,6 +9501,112 @@ button {
   gap: 18px;
 }
 
+.aptitude-code-workspace {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.aptitude-code-panel,
+.aptitude-editor-panel {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid #dbe4f0;
+  background: #f8fbff;
+}
+
+.aptitude-code-panel-header,
+.aptitude-editor-toolbar,
+.aptitude-code-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.aptitude-code-block {
+  display: grid;
+  gap: 10px;
+}
+
+.aptitude-code-block h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.aptitude-code-block ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.aptitude-language-select {
+  min-width: 180px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+}
+
+.aptitude-code-editor {
+  min-height: 420px !important;
+  font-family: Consolas, "Courier New", monospace !important;
+  font-size: 0.94rem !important;
+  line-height: 1.5 !important;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+  border-color: #0f172a !important;
+}
+
+.aptitude-code-editor.is-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.aptitude-code-results {
+  display: grid;
+  gap: 12px;
+}
+
+.aptitude-code-result-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #dbe4f0;
+  background: #fff;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.aptitude-code-result-card.is-pass {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.aptitude-code-result-card.is-fail {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.aptitude-code-error {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.aptitude-code-summary-text {
+  white-space: pre-wrap;
+  font-family: Consolas, "Courier New", monospace;
+}
+
 .aptitude-code-prompt,
 .aptitude-review-prompt {
   margin: 0;
@@ -9422,6 +9656,94 @@ button {
   outline: none;
   border-color: #14b8a6;
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.12);
+}
+
+.coding-stats-grid {
+  margin-top: 0;
+}
+
+.coding-level-card {
+  text-align: left;
+}
+
+.coding-level-card p {
+  margin: 8px 0 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.coding-level-card small {
+  margin-top: 10px;
+  color: #0f766e;
+  font-weight: 700;
+}
+
+.coding-question-bank {
+  display: grid;
+  gap: 18px;
+}
+
+.coding-question-track-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.coding-track-card {
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid #dbe4f0;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  display: grid;
+  gap: 14px;
+}
+
+.coding-track-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #0f172a;
+}
+
+.coding-track-card p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.coding-track-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.coding-track-tags span {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0f766e;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.coding-fullscreen-lock {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(180deg, #eff6ff, #f8fbff);
+  display: grid;
+  gap: 12px;
+}
+
+.coding-fullscreen-lock h3,
+.coding-fullscreen-lock p {
+  margin: 0;
+}
+
+.coding-fullscreen-lock p {
+  color: #475569;
+  line-height: 1.6;
 }
 
 .aptitude-options-grid {
@@ -9850,7 +10172,12 @@ button {
   .aptitude-setup-grid,
   .aptitude-options-grid,
   .aptitude-summary-grid,
-  .aptitude-review-answer-grid {
+  .aptitude-review-answer-grid,
+  .coding-question-track-list {
+    grid-template-columns: 1fr;
+  }
+
+  .aptitude-code-workspace {
     grid-template-columns: 1fr;
   }
 

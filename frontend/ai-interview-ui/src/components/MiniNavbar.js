@@ -27,17 +27,19 @@ export default function MiniNavbar() {
   return (
     <div className="category-topnav">
       <div className="navbar-left">
-        <img
-          src={logo}
-          alt="APIS Logo"
-          className="navbar-logo"
-        />
-        <div className="navbar-brand">
-          <div className="navbar-brand-title">
-            <h2>APIS</h2>
-            <span>| AI Powered Interview System</span>
+        <Link to="/" className="navbar-home-link">
+          <img
+            src={logo}
+            alt="APIS Logo"
+            className="navbar-logo"
+          />
+          <div className="navbar-brand">
+            <div className="navbar-brand-title">
+              <h2>APIS</h2>
+              <span>| AI Powered Interview System</span>
+            </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       <div className="navbar-center">

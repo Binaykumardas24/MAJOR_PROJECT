@@ -1,78 +1,47 @@
 import React, { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import "../App.css";
 import MiniNavbar from "../components/MiniNavbar";
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+const CODING_HISTORY_KEY = "apis-coding-question-history";
 
 const SECTION_OPTIONS = [
   { id: "aptitude", title: "Aptitude", mode: "mcq", description: "Quantitative practice with arithmetic, percentage, ratio, averages, and data questions." },
   { id: "reasoning", title: "Reasoning", mode: "mcq", description: "Series, coding-decoding, analogy, arrangement, and logic-based questions." },
   { id: "verbal", title: "Qualitative / Verbal", mode: "mcq", description: "Vocabulary, grammar, fill-in-the-blanks, punctuation, and comprehension practice." },
-  { id: "coding_easy", title: "Easy Coding", mode: "coding", description: "One beginner DSA-style coding problem with a 10 minute timer.", timerMinutes: 10 },
-  { id: "coding_advanced", title: "Advanced Coding", mode: "coding", description: "One advanced DSA-style coding problem with a 15 minute timer.", timerMinutes: 15 },
+  { id: "coding", title: "Coding", mode: "coding", description: "Choose a coding level and solve multiple AI-generated coding questions in a platform-style editor." },
+];
+
+const CODING_LEVELS = [
+  { id: "easy", title: "Easy", timerMinutes: 10, description: "Beginner-friendly DSA problems with straightforward logic and basic optimization." },
+  { id: "medium", title: "Medium", timerMinutes: 12, description: "Interview-style coding questions with stronger edge cases and cleaner implementation needs." },
+  { id: "hard", title: "Hard", timerMinutes: 15, description: "More challenging coding problems that need stronger reasoning and optimization." },
 ];
 
 const QUESTION_BANKS = {
   aptitude: [
     { question: "What is 15% of 240?", options: ["24", "30", "36", "42"], answer: "36" },
-    { question: "A shop gives 20% discount on Rs. 500. What is the selling price?", options: ["Rs. 350", "Rs. 380", "Rs. 400", "Rs. 420"], answer: "Rs. 400" },
-    { question: "If 8 workers finish a task in 12 days, how many days will 6 workers take?", options: ["14", "16", "18", "20"], answer: "16" },
     { question: "The average of 12, 18, 20, and 30 is:", options: ["18", "20", "22", "24"], answer: "20" },
     { question: "A train travels 180 km in 3 hours. What is its speed?", options: ["50 km/h", "55 km/h", "60 km/h", "65 km/h"], answer: "60 km/h" },
-    { question: "What is the ratio of 45 to 60?", options: ["3:4", "4:5", "5:6", "6:7"], answer: "3:4" },
-    { question: "If x + 12 = 29, the value of x is:", options: ["15", "16", "17", "18"], answer: "17" },
-    { question: "What is the simple interest on Rs. 1000 for 2 years at 5% per year?", options: ["Rs. 50", "Rs. 75", "Rs. 100", "Rs. 120"], answer: "Rs. 100" },
-    { question: "A number increased by 25% becomes 250. The original number is:", options: ["180", "190", "200", "220"], answer: "200" },
     { question: "What is 3/4 of 84?", options: ["56", "60", "63", "66"], answer: "63" },
-    { question: "If a pen costs Rs. 18, what will be the cost of 12 pens?", options: ["Rs. 196", "Rs. 204", "Rs. 216", "Rs. 224"], answer: "Rs. 216" },
-    { question: "A car uses 8 liters of petrol for 96 km. How much does it use for 120 km?", options: ["9 liters", "10 liters", "11 liters", "12 liters"], answer: "10 liters" },
-    { question: "The perimeter of a square is 48 cm. What is one side?", options: ["10 cm", "12 cm", "14 cm", "16 cm"], answer: "12 cm" },
     { question: "What is 18 squared?", options: ["288", "304", "324", "342"], answer: "324" },
-    { question: "If 5 notebooks cost Rs. 125, what is the cost of 8 notebooks?", options: ["Rs. 180", "Rs. 190", "Rs. 200", "Rs. 210"], answer: "Rs. 200" },
     { question: "What is 40% of 350?", options: ["120", "130", "140", "150"], answer: "140" },
-    { question: "A man buys an item for Rs. 800 and sells it for Rs. 920. Profit percentage is:", options: ["10%", "12%", "15%", "20%"], answer: "15%" },
-    { question: "If 12 men can build a wall in 15 days, how many men are needed to do it in 9 days?", options: ["16", "18", "20", "22"], answer: "20" },
-    { question: "What is the value of 7 x 8 - 9?", options: ["45", "47", "49", "51"], answer: "47" },
-    { question: "A sum doubles itself in 8 years at simple interest. What is the annual rate?", options: ["10%", "12.5%", "15%", "8%"], answer: "12.5%" },
     { question: "If 25% of a number is 75, the number is:", options: ["250", "275", "300", "325"], answer: "300" },
     { question: "What is the area of a rectangle with length 15 cm and breadth 8 cm?", options: ["100", "110", "120", "130"], answer: "120" },
-    { question: "A student scores 72, 68, and 80 in three tests. What average is needed in the fourth test to make the overall average 75?", options: ["76", "78", "80", "82"], answer: "80" },
-    { question: "What is the next number: 5, 10, 20, 40, ?", options: ["60", "70", "80", "90"], answer: "80" },
-    { question: "If a bike covers 150 km using 5 liters of fuel, how many liters for 270 km?", options: ["7", "8", "9", "10"], answer: "9" },
-    { question: "The price of a shirt after 10% discount is Rs. 540. Original price was:", options: ["Rs. 580", "Rs. 600", "Rs. 620", "Rs. 640"], answer: "Rs. 600" },
     { question: "What is 11% of 900?", options: ["89", "95", "99", "101"], answer: "99" },
-    { question: "If 3x = 42, x is:", options: ["12", "13", "14", "15"], answer: "14" },
-    { question: "A class has 18 boys and 12 girls. The ratio of boys to total students is:", options: ["3:5", "2:5", "3:4", "4:5"], answer: "3:5" },
     { question: "What is the cube of 4?", options: ["16", "32", "48", "64"], answer: "64" },
   ],
   reasoning: [
     { question: "Find the next number: 3, 6, 12, 24, ?", options: ["30", "36", "42", "48"], answer: "48" },
     { question: "Odd one out: Circle, Triangle, Square, Table", options: ["Circle", "Square", "Table", "Triangle"], answer: "Table" },
     { question: "If CAT is coded as DBU, how is DOG coded?", options: ["EPH", "EPG", "DOH", "FPH"], answer: "EPH" },
-    { question: "Pointing to a girl, Ravi says, 'She is the daughter of my mother's only child.' The girl is Ravi's:", options: ["Sister", "Daughter", "Niece", "Cousin"], answer: "Daughter" },
     { question: "Find the missing term: A, C, F, J, ?", options: ["M", "N", "O", "P"], answer: "O" },
-    { question: "If SOUTH is written as HTUOS, then TRAIN is written as:", options: ["NIART", "TNIAR", "NIATR", "TRIAN"], answer: "NIART" },
-    { question: "Which pair is similar? Book : Read", options: ["Pen : Ink", "Fork : Eat", "Chair : Sit", "Shoes : Walk"], answer: "Chair : Sit" },
     { question: "Complete the pattern: 2, 5, 10, 17, 26, ?", options: ["35", "36", "37", "38"], answer: "37" },
-    { question: "If all roses are flowers and some flowers fade quickly, then:", options: ["All roses fade quickly", "Some roses may fade quickly", "No roses fade quickly", "Only flowers fade quickly"], answer: "Some roses may fade quickly" },
-    { question: "Which word does not belong? East, West, North, Clock", options: ["East", "North", "Clock", "West"], answer: "Clock" },
     { question: "Find the next letter group: AZ, BY, CX, ?", options: ["DW", "DV", "EW", "DX"], answer: "DW" },
-    { question: "A man walks 5 m north, then 5 m east. In which direction is he from the starting point?", options: ["North-East", "South-East", "North-West", "East"], answer: "North-East" },
-    { question: "Mirror image of 26 would look like:", options: ["62", "92", "A reversed 26", "Depends on mirror orientation"], answer: "A reversed 26" },
     { question: "Choose the analogy: Finger is to Hand as Toe is to:", options: ["Foot", "Leg", "Nail", "Ankle"], answer: "Foot" },
     { question: "Find the next number: 1, 4, 9, 16, ?", options: ["20", "24", "25", "36"], answer: "25" },
-    { question: "Choose the odd pair out: Sun-Day, Moon-Night, Pen-Write, Fish-Sky", options: ["Sun-Day", "Moon-Night", "Pen-Write", "Fish-Sky"], answer: "Fish-Sky" },
-    { question: "If Monday is coded as 1 and Tuesday as 2, what is Friday?", options: ["4", "5", "6", "7"], answer: "5" },
     { question: "What comes next: B, E, H, K, ?", options: ["L", "M", "N", "O"], answer: "N" },
-    { question: "If 5 + 3 = 28 and 7 + 2 = 45 in a code, then 6 + 4 = ?", options: ["36", "40", "52", "60"], answer: "52" },
-    { question: "Choose the correct order: Seed, Plant, Flower, Fruit", options: ["Seed-Plant-Flower-Fruit", "Plant-Seed-Flower-Fruit", "Flower-Seed-Plant-Fruit", "Fruit-Flower-Seed-Plant"], answer: "Seed-Plant-Flower-Fruit" },
-    { question: "In a row, Maya is 7th from the left and 10th from the right. How many people are in the row?", options: ["15", "16", "17", "18"], answer: "16" },
-    { question: "Choose the missing term: 4, 9, 19, 39, ?", options: ["69", "79", "89", "99"], answer: "79" },
-    { question: "If RED is coded as 27, and BLUE as 40, which word could be coded as 30?", options: ["GREEN", "PINK", "BLACK", "WHITE"], answer: "PINK" },
-    { question: "Find the next shape count: 1 triangle, 2 squares, 3 pentagons, ?", options: ["4 hexagons", "4 circles", "5 hexagons", "4 rectangles"], answer: "4 hexagons" },
-    { question: "A clock shows 3:15. What is the angle between the hands?", options: ["0 degrees", "7.5 degrees", "15 degrees", "22.5 degrees"], answer: "7.5 degrees" },
-    { question: "If all cups are plates and some plates are bowls, then:", options: ["All bowls are cups", "Some bowls may be cups", "No cups are bowls", "All plates are cups"], answer: "Some bowls may be cups" },
-    { question: "Choose the next term: Z, X, U, Q, ?", options: ["N", "M", "L", "K"], answer: "L" },
-    { question: "If in a certain language, RAIN is written as SZJM, how is CLOUD written?", options: ["DMPTVE", "DMQVE", "DMPTWE", "DMQVEF"], answer: "DMQVE" },
-    { question: "Which figure completes the series? Circle, triangle, circle, triangle, ?", options: ["Square", "Circle", "Triangle", "Star"], answer: "Circle" },
     { question: "Find the next number: 81, 27, 9, 3, ?", options: ["1", "0", "2", "6"], answer: "1" },
   ],
   verbal: [
@@ -81,50 +50,14 @@ const QUESTION_BANKS = {
     { question: "Fill in the blank: She ____ to the office every day.", options: ["go", "goes", "gone", "going"], answer: "goes" },
     { question: "Which sentence is grammatically correct?", options: ["He don't like tea.", "He doesn't likes tea.", "He doesn't like tea.", "He not like tea."], answer: "He doesn't like tea." },
     { question: "Choose the correctly spelled word.", options: ["Accomodate", "Acommodate", "Accommodate", "Acomodate"], answer: "Accommodate" },
-    { question: "Select the word closest in meaning to 'Brief'.", options: ["Short", "Bright", "Broad", "Empty"], answer: "Short" },
     { question: "Fill in the blank: We have lived here ____ 2019.", options: ["for", "since", "from", "at"], answer: "since" },
     { question: "Choose the antonym of 'Ancient'.", options: ["Old", "Historic", "Modern", "Traditional"], answer: "Modern" },
-    { question: "Which word best completes the sentence? The lecture was so ____ that everyone stayed attentive.", options: ["boring", "engaging", "silent", "weak"], answer: "engaging" },
     { question: "Choose the correct article: She bought ____ umbrella.", options: ["a", "an", "the", "no article"], answer: "an" },
     { question: "Pick the synonym of 'Accurate'.", options: ["Exact", "Random", "Weak", "Harsh"], answer: "Exact" },
-    { question: "Which sentence uses punctuation correctly?", options: ["After lunch we, went home.", "After lunch, we went home.", "After lunch we went, home.", "After, lunch we went home."], answer: "After lunch, we went home." },
     { question: "Choose the best meaning of 'Reluctant'.", options: ["Willing", "Uncertain", "Unwilling", "Excited"], answer: "Unwilling" },
-    { question: "Fill in the blank: If I ____ more time, I would learn Spanish.", options: ["have", "had", "has", "having"], answer: "had" },
-    { question: "Choose the odd word out.", options: ["Novel", "Poem", "Essay", "Hammer"], answer: "Hammer" },
-    { question: "Choose the antonym of 'Visible'.", options: ["Bright", "Hidden", "Clear", "Sharp"], answer: "Hidden" },
-    { question: "Which word is closest in meaning to 'Generous'?", options: ["Kind", "Selfish", "Loud", "Weak"], answer: "Kind" },
-    { question: "Fill in the blank: Neither the teacher nor the students ____ late.", options: ["was", "were", "is", "be"], answer: "were" },
-    { question: "Choose the correct sentence.", options: ["Everyone have a notebook.", "Everyone has a notebook.", "Everyone having a notebook.", "Everyone are having a notebook."], answer: "Everyone has a notebook." },
-    { question: "Select the synonym of 'Cautious'.", options: ["Careful", "Careless", "Fast", "Sleepy"], answer: "Careful" },
-    { question: "Pick the correct passive form: They built the bridge.", options: ["The bridge was built by them.", "The bridge built by them.", "The bridge is build by them.", "The bridge was builded by them."], answer: "The bridge was built by them." },
-    { question: "Choose the antonym of 'Scarce'.", options: ["Rare", "Plenty", "Dry", "Weak"], answer: "Plenty" },
-    { question: "Complete the sentence: The movie was ____ than I expected.", options: ["more interesting", "most interesting", "interesting", "interest"], answer: "more interesting" },
-    { question: "Which word is correctly used?", options: ["He gave me an advice.", "He gave me some advice.", "He gave me many advice.", "He gave me advices."], answer: "He gave me some advice." },
-    { question: "Choose the synonym of 'Bold'.", options: ["Timid", "Brave", "Shy", "Quiet"], answer: "Brave" },
-    { question: "Pick the correct conjunction: I stayed home ____ it was raining.", options: ["because", "unless", "although", "until"], answer: "because" },
-    { question: "Choose the word that does not belong: Verb, Noun, Adjective, Compass", options: ["Verb", "Noun", "Adjective", "Compass"], answer: "Compass" },
-    { question: "Fill in the blank: By next month, she ____ here for five years.", options: ["will work", "will have worked", "works", "worked"], answer: "will have worked" },
-    { question: "Choose the correct reported speech: He said, 'I am tired.'", options: ["He said he is tired.", "He said that he was tired.", "He told he was tired.", "He said that I am tired."], answer: "He said that he was tired." },
-    { question: "Which sentence is in the correct comparative form?", options: ["This road is more safer.", "This road is safer.", "This road is safest.", "This road is safety."], answer: "This road is safer." },
   ],
 };
 
-const CODING_CHALLENGES = {
-  coding_easy: {
-    question: "Easy DSA: Two Sum Indices",
-    prompt: "Given an array of integers and a target value, return the indices of the two numbers whose sum equals the target. You may assume exactly one valid pair exists and you cannot use the same element twice.",
-    examples: ["nums = [2, 7, 11, 15], target = 9 -> output: [0, 1]", "nums = [3, 2, 4], target = 6 -> output: [1, 2]"],
-    answer: "Reference approach: iterate once while storing visited numbers in a hash map. For each value x, check if target - x is already in the map. If yes, return the stored index and current index. Time complexity O(n), space complexity O(n).",
-    timerSeconds: 10 * 60,
-  },
-  coding_advanced: {
-    question: "Advanced DSA: Longest Substring Without Repeating Characters",
-    prompt: "Given a string s, find the length of the longest substring without repeating characters. Explain your approach and write code or pseudocode for an optimal solution.",
-    examples: ["s = 'abcabcbb' -> output: 3 because 'abc' is the longest unique substring", "s = 'pwwkew' -> output: 3 because 'wke' is the longest unique substring"],
-    answer: "Reference approach: use a sliding window with two pointers and a map of last seen positions. Expand the right pointer, and when a repeated character appears inside the current window, move the left pointer just after the last seen position. Track the maximum window size. Time complexity O(n), space complexity O(min(n, charset)).",
-    timerSeconds: 15 * 60,
-  },
-};
 function getSectionConfig(sectionId) {
   return SECTION_OPTIONS.find((section) => section.id === sectionId) || SECTION_OPTIONS[0];
 }
@@ -134,14 +67,22 @@ function isCodingSection(sectionId) {
 }
 
 function getConfiguredQuestionCount(sectionId, selectedCount) {
-  return isCodingSection(sectionId) ? 1 : selectedCount;
+  if (isCodingSection(sectionId)) {
+    return selectedCount;
+  }
+  return Math.max(selectedCount, 10);
 }
 
 function getConfiguredDuration(sectionId, selectedCount) {
-  if (isCodingSection(sectionId)) {
-    return CODING_CHALLENGES[sectionId].timerSeconds;
-  }
+  if (isCodingSection(sectionId)) return 0;
   return getConfiguredQuestionCount(sectionId, selectedCount) * 60;
+}
+
+function formatTime(totalSeconds) {
+  const safeSeconds = Math.max(totalSeconds, 0);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function shuffleArray(items) {
@@ -153,33 +94,30 @@ function shuffleArray(items) {
   return shuffled;
 }
 
-function buildSessionQuestions(sectionId, count) {
-  if (isCodingSection(sectionId)) {
-    const challenge = CODING_CHALLENGES[sectionId];
-    return [{ sessionId: `${sectionId}-challenge-1`, type: "coding", question: challenge.question, prompt: challenge.prompt, examples: challenge.examples, answer: challenge.answer }];
-  }
-
+function buildMcqQuestions(sectionId, count) {
   const bank = QUESTION_BANKS[sectionId] || [];
-  return shuffleArray(bank)
-    .slice(0, count)
-    .map((question, index) => ({ ...question, type: "mcq", sessionId: `${sectionId}-${index}` }));
-}
+  if (!bank.length) return [];
 
-function formatTime(totalSeconds) {
-  const safeSeconds = Math.max(totalSeconds, 0);
-  const minutes = Math.floor(safeSeconds / 60);
-  const seconds = safeSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  const questions = [];
+  let round = 0;
+  while (questions.length < count) {
+    const currentRound = round;
+    const batch = shuffleArray(bank).map((question, index) => ({
+      ...question,
+      sessionId: `${sectionId}-${currentRound}-${index}`,
+    }));
+    questions.push(...batch);
+    round += 1;
+  }
+  return questions.slice(0, count);
 }
 
 function createSummary(sectionId, questions, answers, reason = "manual") {
-  const codingMode = isCodingSection(sectionId);
   const answeredCount = answers.filter((answer) => (answer || "").trim().length > 0).length;
-  const score = codingMode ? answeredCount : questions.filter((question, index) => answers[index] === question.answer).length;
-
+  const score = questions.filter((question, index) => answers[index] === question.answer).length;
   return {
     sectionId,
-    mode: codingMode ? "coding" : "mcq",
+    mode: "mcq",
     totalQuestions: questions.length,
     answeredCount,
     score,
@@ -188,9 +126,173 @@ function createSummary(sectionId, questions, answers, reason = "manual") {
       ...question,
       selectedAnswer: answers[index] || "Not answered",
       correctAnswer: question.answer,
-      isCorrect: codingMode ? null : answers[index] === question.answer,
+      isCorrect: answers[index] === question.answer,
     })),
   };
+}
+
+function createCodingSessionSummary(sectionId, challenges, answers, language, runResults, submitResults, reason = "manual") {
+  const items = (challenges || []).map((challenge, index) => {
+    const execution = submitResults[index]?.execution || runResults[index] || { passed: 0, total: 0, results: [], status: "not_run" };
+    return {
+      challenge,
+      sourceCode: answers[index] || "",
+      execution,
+      review: submitResults[index]?.review || null,
+      language,
+    };
+  });
+  return {
+    sectionId,
+    mode: "coding",
+    totalQuestions: items.length,
+    answeredCount: items.filter((item) => item.sourceCode.trim()).length,
+    score: items.reduce((total, item) => total + (item.execution.passed || 0), 0),
+    autoSubmitted: reason === "auto",
+    codingItems: items,
+  };
+}
+
+function getStarterCode(challenge, language) {
+  return challenge?.starter_code?.[language] || challenge?.starter_code?.javascript || "";
+}
+
+function getCodingChallengeKey(challenge) {
+  const title = String(challenge?.title || challenge?.question || "").trim().toLowerCase();
+  const description = String(challenge?.description || challenge?.prompt || "").trim().toLowerCase();
+  return `${title}::${description}`;
+}
+
+function loadSeenCodingQuestions() {
+  try {
+    const raw = window.localStorage.getItem(CODING_HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return typeof parsed === "object" && parsed ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSeenCodingQuestions(data) {
+  window.localStorage.setItem(CODING_HISTORY_KEY, JSON.stringify(data));
+}
+
+function buildLocalCodingFallback(level, index) {
+  const fallbackPools = {
+    easy: [
+      {
+        title: "Count Vowels in a String",
+        description: "Given a string, print the number of vowels present in it.",
+        constraints: ["1 <= length <= 10^5", "Treat vowels case-insensitively"],
+        hints: ["Scan once through the string.", "Check a, e, i, o, u only."],
+        examples: [{ input: "education", output: "5", explanation: "The vowels are e, u, a, i, o." }],
+        public_test_cases: [{ input: "hello", expected_output: "2" }, { input: "rhythm", expected_output: "0" }],
+      },
+      {
+        title: "Sum of Digits",
+        description: "Given a non-negative integer, print the sum of its digits.",
+        constraints: ["0 <= n <= 10^18"],
+        hints: ["Process the characters or repeatedly divide by 10."],
+        examples: [{ input: "482", output: "14", explanation: "4 + 8 + 2 = 14." }],
+        public_test_cases: [{ input: "12345", expected_output: "15" }, { input: "700", expected_output: "7" }],
+      },
+      {
+        title: "Count Even Numbers",
+        description: "Given a space-separated list of integers, print how many are even.",
+        constraints: ["1 <= number of integers <= 10^5"],
+        hints: ["Use modulo 2.", "You only need a counter."],
+        examples: [{ input: "1 2 3 4 5 6", output: "3", explanation: "2, 4, and 6 are even." }],
+        public_test_cases: [{ input: "10 15 20 25", expected_output: "2" }, { input: "7 9 11", expected_output: "0" }],
+      },
+    ],
+    medium: [
+      {
+        title: "Group Anagrams",
+        description: "Given a list of words, group the anagrams and print the groups in deterministic order.",
+        constraints: ["Use standard input and output."],
+        hints: ["Use a sorted string as the group key."],
+        examples: [{ input: "eat tea tan ate nat bat", output: "[[ate,eat,tea],[bat],[nat,tan]]", explanation: "Words with same sorted form are grouped." }],
+        public_test_cases: [{ input: "abc bca cab foo oof", expected_output: "[[abc,bca,cab],[foo,oof]]" }],
+      },
+      {
+        title: "Longest Consecutive Run",
+        description: "Given a space-separated list of integers, print the length of the longest consecutive sequence.",
+        constraints: ["Aim for near O(n) time."],
+        hints: ["Use a set.", "Only start counting when a value has no predecessor."],
+        examples: [{ input: "100 4 200 1 3 2", output: "4", explanation: "1,2,3,4 is the longest sequence." }],
+        public_test_cases: [{ input: "9 1 4 7 3 2 6 8 0", expected_output: "5" }],
+      },
+      {
+        title: "Product of Array Except Self",
+        description: "Given a list of integers, print the product of array except self for each position.",
+        constraints: ["Do not use division."],
+        hints: ["Build prefix and suffix products."],
+        examples: [{ input: "1 2 3 4", output: "24 12 8 6", explanation: "Each index gets the product of all other numbers." }],
+        public_test_cases: [{ input: "2 3 4 5", expected_output: "60 40 30 24" }],
+      },
+    ],
+    hard: [
+      {
+        title: "Longest Unique Substring Length",
+        description: "Given a string, print the length of the longest substring without repeating characters.",
+        constraints: ["Aim for an O(n) sliding-window solution."],
+        hints: ["Track last seen positions.", "Move the left pointer only forward."],
+        examples: [{ input: "abcabcbb", output: "3", explanation: "abc is the longest unique substring." }],
+        public_test_cases: [{ input: "pwwkew", expected_output: "3" }, { input: "bbbbb", expected_output: "1" }],
+      },
+      {
+        title: "Minimum Window Substring Length",
+        description: "Given strings s and t separated by a newline, print the length of the minimum window in s containing all characters of t.",
+        constraints: ["Print 0 if no valid window exists."],
+        hints: ["Use a sliding window with frequency maps."],
+        examples: [{ input: "ADOBECODEBANC\nABC", output: "4", explanation: "BANC is the minimum valid window." }],
+        public_test_cases: [{ input: "a\na", expected_output: "1" }, { input: "a\naa", expected_output: "0" }],
+      },
+      {
+        title: "Largest Rectangle in Histogram",
+        description: "Given histogram bar heights, print the area of the largest rectangle.",
+        constraints: ["Aim for an O(n) stack solution."],
+        hints: ["Use a monotonic increasing stack."],
+        examples: [{ input: "2 1 5 6 2 3", output: "10", explanation: "The best rectangle spans heights 5 and 6." }],
+        public_test_cases: [{ input: "2 4", expected_output: "4" }, { input: "6 2 5 4 5 1 6", expected_output: "12" }],
+      },
+    ],
+  };
+
+  const pool = fallbackPools[level] || fallbackPools.easy;
+  const base = pool[index % pool.length];
+  return {
+    ...base,
+    id: `frontend-${level}-${index + 1}`,
+    difficulty: level,
+    sessionId: `coding-challenge-${index + 1}`,
+    type: "coding",
+    question: base.title,
+    prompt: base.description,
+    starter_code: {
+      javascript: `// ${base.title}\nconst fs = require("fs");\nconst input = fs.readFileSync(0, "utf8").trim();\n\nfunction solve(rawInput) {\n  // Write your solution here\n  return "";\n}\n\nprocess.stdout.write(String(solve(input)).trim());\n`,
+      java: `import java.io.*;\n\npublic class Solution {\n    static String solve(String input) {\n        // Write your solution here\n        return "";\n    }\n\n    public static void main(String[] args) throws Exception {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb = new StringBuilder();\n        String line;\n        boolean first = true;\n        while ((line = br.readLine()) != null) {\n            if (!first) sb.append("\\n");\n            sb.append(line);\n            first = false;\n        }\n        System.out.print(solve(sb.toString().trim()).trim());\n    }\n}\n`,
+      python: `# ${base.title}\nimport sys\n\n\ndef solve(raw_input: str) -> str:\n    # Write your solution here\n    return ""\n\n\nif __name__ == "__main__":\n    print(str(solve(sys.stdin.read().strip())).strip())\n`,
+    },
+  };
+}
+
+function buildLocalCodingSession(level, count, excludedKeys = []) {
+  const excluded = new Set(excludedKeys);
+  const items = [];
+  let index = 0;
+  let attempts = 0;
+  while (items.length < count && attempts < count * 10) {
+    const challenge = buildLocalCodingFallback(level, index);
+    const key = getCodingChallengeKey(challenge);
+    if (!excluded.has(key)) {
+      excluded.add(key);
+      items.push(challenge);
+    }
+    index += 1;
+    attempts += 1;
+  }
+  return items;
 }
 
 function AptitudeTest() {
@@ -202,38 +304,106 @@ function AptitudeTest() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [summary, setSummary] = useState(null);
+  const [runtimeLanguages, setRuntimeLanguages] = useState([]);
+  const [codingLevel, setCodingLevel] = useState("easy");
+  const [codingLanguage, setCodingLanguage] = useState("javascript");
+  const [codingRunResults, setCodingRunResults] = useState([]);
+  const [codingSubmitResults, setCodingSubmitResults] = useState([]);
+  const [codingLoading, setCodingLoading] = useState(false);
+  const [codingError, setCodingError] = useState("");
 
   const selectedSectionConfig = useMemo(() => getSectionConfig(selectedSection), [selectedSection]);
+  const codingMode = selectedSectionConfig.mode === "coding";
   const configuredQuestionCount = getConfiguredQuestionCount(selectedSection, questionCount);
-  const configuredDuration = getConfiguredDuration(selectedSection, questionCount);
+  const configuredDuration = codingMode
+    ? configuredQuestionCount * ((CODING_LEVELS.find((level) => level.id === codingLevel)?.timerMinutes || 10) * 60)
+    : getConfiguredDuration(selectedSection, questionCount);
   const totalMinutes = Math.floor(configuredDuration / 60);
   const currentQuestion = questions[currentIndex];
   const answeredCount = answers.filter((answer) => (answer || "").trim().length > 0).length;
-
-  function handleFinish(reason = "manual") {
-    setStage("summary");
-    setSummary(createSummary(selectedSection, questions, answers, reason));
-    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-  }
+  const minQuestionCount = codingMode ? 5 : 10;
+  const sliderMaxQuestionCount = codingMode ? 20 : 50;
+  const selectedRuntime = useMemo(() => runtimeLanguages.find((item) => item.id === codingLanguage) || null, [runtimeLanguages, codingLanguage]);
+  const currentCodingRunResult = codingRunResults[currentIndex] || null;
 
   useEffect(() => {
-    if (stage !== "test") {
-      return undefined;
-    }
+    let ignore = false;
+    const loadRuntimeStatus = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/coding/runtime-status`);
+        if (ignore) return;
+        const fallback = [
+          { id: "javascript", label: "JavaScript (Node.js)", available: true },
+          { id: "java", label: "Java", available: true },
+          { id: "python", label: "Python", available: false },
+          { id: "c", label: "C", available: false },
+          { id: "cpp", label: "C++", available: false },
+          { id: "csharp", label: "C#", available: false },
+          { id: "typescript", label: "TypeScript", available: false },
+          { id: "go", label: "Go", available: false },
+          { id: "rust", label: "Rust", available: false },
+          { id: "php", label: "PHP", available: false },
+          { id: "ruby", label: "Ruby", available: false },
+          { id: "kotlin", label: "Kotlin", available: false },
+          { id: "swift", label: "Swift", available: false },
+        ];
+        const languages = Array.isArray(response.data?.languages) && response.data.languages.length ? response.data.languages : fallback;
+        setRuntimeLanguages(languages);
+        const preferredLanguage = languages.find((item) => item.available)?.id || languages[0].id;
+        setCodingLanguage((current) => (languages.some((item) => item.id === current) ? current : preferredLanguage));
+      } catch {
+        if (!ignore) {
+          setRuntimeLanguages([
+            { id: "javascript", label: "JavaScript (Node.js)", available: true },
+            { id: "java", label: "Java", available: true },
+            { id: "python", label: "Python", available: false },
+            { id: "c", label: "C", available: false },
+            { id: "cpp", label: "C++", available: false },
+          ]);
+        }
+      }
+    };
+    loadRuntimeStatus();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
+  useEffect(() => {
+    if (codingMode) return;
+    setQuestionCount((current) => Math.max(current, 10));
+  }, [codingMode, selectedSection]);
+
+  useEffect(() => {
+    if (!codingMode || !currentQuestion) return;
+    setAnswers((currentAnswers) => {
+      if ((currentAnswers[currentIndex] || "").trim()) {
+        return currentAnswers;
+      }
+      const nextAnswers = [...currentAnswers];
+      nextAnswers[currentIndex] = getStarterCode(currentQuestion, codingLanguage);
+      return nextAnswers;
+    });
+  }, [codingLanguage, codingMode, currentIndex, currentQuestion]);
+
+  useEffect(() => {
+    if (stage !== "test") return undefined;
     if (timeLeft <= 0) {
-      setStage("summary");
-      setSummary(createSummary(selectedSection, questions, answers, "auto"));
-      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      if (codingMode && (answers[currentIndex] || "").trim()) {
+        void handleSubmitCode("auto");
+      } else if (!codingMode) {
+        setStage("summary");
+        setSummary(createSummary(selectedSection, questions, answers, "auto"));
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      }
       return undefined;
     }
-
     const timer = window.setInterval(() => {
       setTimeLeft((currentTime) => currentTime - 1);
     }, 1000);
-
     return () => window.clearInterval(timer);
-  }, [answers, questions, selectedSection, stage, timeLeft]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers, codingMode, questions, selectedSection, stage, timeLeft, currentIndex]);
 
   function handleOpenSetup() {
     setStage("setup");
@@ -242,11 +412,102 @@ function AptitudeTest() {
     setCurrentIndex(0);
     setSummary(null);
     setTimeLeft(0);
+    setCodingRunResults([]);
+    setCodingSubmitResults([]);
+    setCodingError("");
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   }
 
-  function handleStartTest() {
-    const sessionQuestions = buildSessionQuestions(selectedSection, configuredQuestionCount);
+  async function handleStartTest() {
+    if (codingMode) {
+      setCodingLoading(true);
+      setCodingError("");
+      try {
+        const seenHistory = loadSeenCodingQuestions();
+        const seenForLevel = Array.isArray(seenHistory[codingLevel]) ? seenHistory[codingLevel] : [];
+        const uniqueChallenges = [];
+        const seenChallengeKeys = new Set();
+        let attempts = 0;
+        const maxAttempts = Math.max(configuredQuestionCount * 6, 12);
+
+        while (uniqueChallenges.length < configuredQuestionCount && attempts < maxAttempts) {
+          attempts += 1;
+          const response = await axios.post(`${API_BASE_URL}/coding/challenge`, {
+            difficulty: codingLevel,
+            excluded_questions: [...seenForLevel, ...Array.from(seenChallengeKeys)],
+          });
+          const rawChallenge = response.data?.challenge;
+          if (!rawChallenge) {
+            continue;
+          }
+          const normalizedChallenge = {
+            ...rawChallenge,
+            sessionId: `coding-challenge-${uniqueChallenges.length + 1}`,
+            type: "coding",
+            question: rawChallenge.title || `Coding Question ${uniqueChallenges.length + 1}`,
+            prompt: rawChallenge.description || "",
+          };
+          const challengeKey = getCodingChallengeKey(normalizedChallenge);
+          if (!challengeKey || seenChallengeKeys.has(challengeKey)) {
+            continue;
+          }
+          seenChallengeKeys.add(challengeKey);
+          uniqueChallenges.push(normalizedChallenge);
+        }
+
+        const challengeList = [...uniqueChallenges];
+        while (challengeList.length < configuredQuestionCount) {
+          const fallbackChallenge = buildLocalCodingFallback(codingLevel, challengeList.length);
+          const fallbackKey = getCodingChallengeKey(fallbackChallenge);
+          if (!seenChallengeKeys.has(fallbackKey)) {
+            seenChallengeKeys.add(fallbackKey);
+            challengeList.push(fallbackChallenge);
+          } else {
+            break;
+          }
+        }
+        if (!challengeList.length) throw new Error("Missing coding challenge payload.");
+        const nextSeenHistory = {
+          ...seenHistory,
+          [codingLevel]: [...seenForLevel, ...challengeList.map((challenge) => getCodingChallengeKey(challenge))].slice(-300),
+        };
+        saveSeenCodingQuestions(nextSeenHistory);
+        if (challengeList.length < configuredQuestionCount) {
+          setCodingError(`Only ${challengeList.length} unique coding questions could be prepared right now, so the session started with the available unique set.`);
+        }
+        setQuestions(challengeList);
+        setAnswers(challengeList.map((challenge) => getStarterCode(challenge, codingLanguage)));
+        setCodingRunResults(new Array(challengeList.length).fill(null));
+        setCodingSubmitResults(new Array(challengeList.length).fill(null));
+        setCurrentIndex(0);
+        setTimeLeft(configuredDuration);
+        setSummary(null);
+        setStage("test");
+      } catch (error) {
+        const seenHistory = loadSeenCodingQuestions();
+        const seenForLevel = Array.isArray(seenHistory[codingLevel]) ? seenHistory[codingLevel] : [];
+        const fallbackChallenges = buildLocalCodingSession(codingLevel, configuredQuestionCount, seenForLevel);
+        setQuestions(fallbackChallenges);
+        setAnswers(fallbackChallenges.map((challenge) => getStarterCode(challenge, codingLanguage)));
+        setCodingRunResults(new Array(fallbackChallenges.length).fill(null));
+        setCodingSubmitResults(new Array(fallbackChallenges.length).fill(null));
+        setCurrentIndex(0);
+        setTimeLeft(configuredDuration);
+        setSummary(null);
+        setStage("test");
+        saveSeenCodingQuestions({
+          ...seenHistory,
+          [codingLevel]: [...seenForLevel, ...fallbackChallenges.map((challenge) => getCodingChallengeKey(challenge))].slice(-300),
+        });
+        setCodingError(error?.response?.data?.detail || "AI coding generation failed, so fallback coding questions were loaded.");
+      } finally {
+        setCodingLoading(false);
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      }
+      return;
+    }
+
+    const sessionQuestions = buildMcqQuestions(selectedSection, configuredQuestionCount);
     setQuestions(sessionQuestions);
     setAnswers(new Array(sessionQuestions.length).fill(""));
     setCurrentIndex(0);
@@ -264,6 +525,88 @@ function AptitudeTest() {
     });
   }
 
+  async function handleRunCode() {
+    const sourceCode = answers[currentIndex] || "";
+    if (!currentQuestion || !sourceCode.trim()) return;
+    if (selectedRuntime?.available === false) {
+      setCodingError(`${selectedRuntime.label} is shown in the selector, but it is not installed on the backend machine yet.`);
+      setCodingRunResults((current) => {
+        const next = [...current];
+        next[currentIndex] = null;
+        return next;
+      });
+      return;
+    }
+    setCodingLoading(true);
+    setCodingError("");
+    try {
+      const response = await axios.post(`${API_BASE_URL}/coding/run`, {
+        language: codingLanguage,
+        source_code: sourceCode,
+        test_cases: currentQuestion.public_test_cases || [],
+      });
+      setCodingRunResults((current) => {
+        const next = [...current];
+        next[currentIndex] = response.data;
+        return next;
+      });
+    } catch (error) {
+      setCodingError(error?.response?.data?.detail || "Failed to run code.");
+      setCodingRunResults((current) => {
+        const next = [...current];
+        next[currentIndex] = null;
+        return next;
+      });
+    } finally {
+      setCodingLoading(false);
+    }
+  }
+
+  async function handleSubmitCode(reason = "manual") {
+    const sourceCode = answers[currentIndex] || "";
+    if (!currentQuestion || !sourceCode.trim()) return;
+    if (selectedRuntime?.available === false) {
+      setCodingError(`${selectedRuntime.label} is shown in the selector, but it is not installed on the backend machine yet.`);
+      setCodingSubmitResults((current) => {
+        const next = [...current];
+        next[currentIndex] = null;
+        return next;
+      });
+      return;
+    }
+    setCodingLoading(true);
+    setCodingError("");
+    try {
+      const response = await axios.post(`${API_BASE_URL}/coding/submit`, {
+        language: codingLanguage,
+        source_code: sourceCode,
+        challenge: currentQuestion,
+      });
+      setCodingSubmitResults((current) => {
+        const next = [...current];
+        next[currentIndex] = response.data;
+        return next;
+      });
+      if (currentIndex === questions.length - 1) {
+        setSummary(createCodingSessionSummary(selectedSection, questions, answers, codingLanguage, codingRunResults, [...codingSubmitResults.slice(0, currentIndex), response.data, ...codingSubmitResults.slice(currentIndex + 1)], reason));
+        setStage("summary");
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      } else {
+        setCurrentIndex((current) => current + 1);
+      }
+    } catch (error) {
+      setCodingError(error?.response?.data?.detail || "Failed to submit solution.");
+    } finally {
+      setCodingLoading(false);
+    }
+  }
+
+  function handleFinishMcq(reason = "manual") {
+    setStage("summary");
+    setSummary(createSummary(selectedSection, questions, answers, reason));
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  }
+
   return (
     <div className="mock-page reveal">
       <MiniNavbar />
@@ -277,46 +620,32 @@ function AptitudeTest() {
       </div>
 
       {stage === "landing" && (
-        <>
-          <div className="mock-section">
-            <div className="section-header-row">
-              <h2 className="section-title">Practice Modes</h2>
-              <button className="small-start-btn" onClick={handleOpenSetup}>Start Aptitude -&gt;</button>
-            </div>
-
-            <div className="aptitude-info-grid">
-              <div className="aptitude-info-card aptitude-info-card-learn">
-                <div className="aptitude-info-card-tag aptitude-info-card-tag-warm">What you'll learn</div>
-                <ul>
-                  <li>Quantitative, reasoning, and verbal problem solving with fully unique MCQ practice up to 30 questions per section</li>
-                  <li>Section-based timed rounds so you can practice exactly the topic you want to improve</li>
-                  <li>Easy and advanced coding challenges with DSA-style prompts and a final reference solution review</li>
-                </ul>
-              </div>
-
-              <div className="aptitude-info-card aptitude-info-card-types">
-                <div className="aptitude-info-card-tag aptitude-info-card-tag-strong">Question types</div>
-                <ul>
-                  <li>Aptitude, reasoning, and verbal sections use 4-option MCQs with 60 seconds per question</li>
-                  <li>Easy Coding gives 1 DSA question with a 10 minute timer</li>
-                  <li>Advanced Coding gives 1 DSA question with a 15 minute timer and a harder problem statement</li>
-                </ul>
-              </div>
-            </div>
+        <div className="mock-section">
+          <div className="section-header-row">
+            <h2 className="section-title">Practice Modes</h2>
+            <button className="small-start-btn" onClick={handleOpenSetup}>Start Aptitude -&gt;</button>
           </div>
-
-          <div className="mistake-box">
-            <div>
-              <h2>Common Mistakes</h2>
+          <div className="aptitude-info-grid">
+            <div className="aptitude-info-card aptitude-info-card-learn">
+              <div className="aptitude-info-card-tag aptitude-info-card-tag-warm">What you'll learn</div>
               <ul>
-                <li>Rushing through the question without reading all options or the full coding prompt</li>
-                <li>Ignoring total time and spending too long on a single problem</li>
-                <li>Leaving your thought process blank instead of writing the best answer you can before time ends</li>
+                <li>Quantitative, reasoning, and verbal problem solving with timed MCQ practice</li>
+                <li>Coding challenges with selectable level, multiple AI-generated questions, and runnable code</li>
+                <li>Passed test case counts and AI code review after submission</li>
+              </ul>
+            </div>
+            <div className="aptitude-info-card aptitude-info-card-types">
+              <div className="aptitude-info-card-tag aptitude-info-card-tag-strong">Question types</div>
+              <ul>
+                <li>MCQ sections use 4-option questions with 60 seconds per question</li>
+                <li>The coding section uses a split problem/editor layout like coding platforms</li>
+                <li>The editor starts with a starter template, not a solved answer</li>
               </ul>
             </div>
           </div>
-        </>
+        </div>
       )}
+
       {stage === "setup" && (
         <div className="mock-section">
           <div className="aptitude-flow-card">
@@ -324,12 +653,12 @@ function AptitudeTest() {
               <div>
                 <span className="aptitude-chip">Test setup</span>
                 <h2>Select your section and question count</h2>
-                <p>Non-coding sections allow 10 to 30 unique questions. Coding sections are fixed to one DSA question with their own timer.</p>
+                <p>Non-coding sections allow 10 to 50 questions. The coding section lets you choose level and 5 to 20 AI-generated coding questions.</p>
               </div>
               <div className="aptitude-timer-preview">
                 <span>Total time</span>
                 <strong>{totalMinutes} min</strong>
-                <small>{selectedSectionConfig.mode === "coding" ? "1 coding challenge" : `${configuredQuestionCount} questions x 60 sec`}</small>
+                <small>{codingMode ? `${configuredQuestionCount} coding questions` : `${configuredQuestionCount} questions x 60 sec`}</small>
               </div>
             </div>
 
@@ -347,35 +676,55 @@ function AptitudeTest() {
               ))}
             </div>
 
-            {selectedSectionConfig.mode === "coding" ? (
-              <div className="aptitude-count-card aptitude-count-card-fixed">
+            {codingMode ? (
+              <div className="aptitude-count-card">
                 <div className="aptitude-count-copy">
-                  <span className="aptitude-chip">Question count</span>
-                  <h3>1 coding question</h3>
-                  <p>{selectedSection === "coding_easy" ? "Easy Coding is fixed to one DSA question with 10 minutes." : "Advanced Coding is fixed to one DSA question with 15 minutes."}</p>
+                  <span className="aptitude-chip">Coding setup</span>
+                  <h3>{codingLevel.charAt(0).toUpperCase() + codingLevel.slice(1)} level, {questionCount} questions</h3>
+                  <p>Choose a coding difficulty level, then set how many coding questions you want in this session from 5 to 20.</p>
                 </div>
-                <div className="aptitude-count-fixed-pill">Fixed challenge</div>
+                <div className="aptitude-count-controls">
+                  <select className="aptitude-language-select" value={codingLevel} onChange={(event) => setCodingLevel(event.target.value)}>
+                    {CODING_LEVELS.map((level) => (
+                      <option key={level.id} value={level.id}>{level.title}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="range"
+                    min="5"
+                    max="20"
+                    value={questionCount}
+                    onChange={(event) => setQuestionCount(Number(event.target.value))}
+                  />
+                  <div className="aptitude-count-stepper">
+                    <button type="button" onClick={() => setQuestionCount((current) => Math.max(5, current - 1))}>-</button>
+                    <div>{questionCount}</div>
+                    <button type="button" onClick={() => setQuestionCount((current) => Math.min(20, current + 1))}>+</button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="aptitude-count-card">
                 <div className="aptitude-count-copy">
                   <span className="aptitude-chip">Question count</span>
                   <h3>{questionCount} questions selected</h3>
-                  <p>Minimum 10 questions and maximum 30 questions in one round.</p>
+                  <p>Choose between 10 and 50 questions for this section.</p>
                 </div>
-
                 <div className="aptitude-count-controls">
                   <input
                     type="range"
-                    min="10"
-                    max="30"
+                    min={minQuestionCount}
+                    max={sliderMaxQuestionCount}
                     value={questionCount}
-                    onChange={(event) => setQuestionCount(Number(event.target.value))}
+                    onChange={(event) => {
+                      const nextValue = Number(event.target.value);
+                      setQuestionCount(Number.isNaN(nextValue) ? minQuestionCount : Math.max(minQuestionCount, nextValue));
+                    }}
                   />
                   <div className="aptitude-count-stepper">
-                    <button type="button" onClick={() => setQuestionCount((current) => Math.max(10, current - 1))}>-</button>
+                    <button type="button" onClick={() => setQuestionCount((current) => Math.max(minQuestionCount, current - 1))}>-</button>
                     <div>{questionCount}</div>
-                    <button type="button" onClick={() => setQuestionCount((current) => Math.min(30, current + 1))}>+</button>
+                    <button type="button" onClick={() => setQuestionCount((current) => current + 1)}>+</button>
                   </div>
                 </div>
               </div>
@@ -413,10 +762,10 @@ function AptitudeTest() {
 
             <div className="aptitude-question-card">
               <div className="aptitude-question-meta">
-                {selectedSectionConfig.mode === "coding" ? (
+                {codingMode ? (
                   <>
-                    <span>{selectedSectionConfig.timerMinutes} minute DSA challenge</span>
-                    <span>Write code, pseudocode, or your approach before time ends</span>
+                    <span>{CODING_LEVELS.find((level) => level.id === codingLevel)?.timerMinutes || 10} minute coding level timer</span>
+                    <span>Question {currentIndex + 1} of {questions.length}: run code, then submit to move to the next coding question</span>
                   </>
                 ) : (
                   <>
@@ -427,18 +776,170 @@ function AptitudeTest() {
               </div>
               <h3>{currentQuestion.question}</h3>
 
-              {selectedSectionConfig.mode === "coding" ? (
-                <div className="aptitude-code-card">
-                  <p className="aptitude-code-prompt">{currentQuestion.prompt}</p>
-                  <div className="aptitude-code-examples">
-                    {currentQuestion.examples.map((example) => (
-                      <div key={example} className="aptitude-code-example">{example}</div>
-                    ))}
+              {codingMode ? (
+                <div className="aptitude-code-workspace">
+                  <div className="aptitude-code-panel">
+                    <div className="aptitude-code-panel-header">
+                      <span className="aptitude-chip">Problem</span>
+                      <strong>{currentQuestion.difficulty || codingLevel}</strong>
+                    </div>
+                    <p className="aptitude-code-prompt">{currentQuestion.description || currentQuestion.prompt}</p>
+
+                    {!!currentQuestion.constraints?.length && (
+                      <div className="aptitude-code-block">
+                        <h4>Constraints</h4>
+                        <ul>
+                          {currentQuestion.constraints.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {!!currentQuestion.hints?.length && (
+                      <div className="aptitude-code-block">
+                        <h4>Hints</h4>
+                        <ul>
+                          {currentQuestion.hints.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="aptitude-code-block">
+                      <h4>Examples</h4>
+                      <div className="aptitude-code-examples">
+                        {(currentQuestion.examples || []).map((example, index) => (
+                          <div key={`example-${index}`} className="aptitude-code-example">
+                            <div><strong>Input:</strong> {example.input || "N/A"}</div>
+                            <div><strong>Output:</strong> {example.output || "N/A"}</div>
+                            {example.explanation ? <div><strong>Why:</strong> {example.explanation}</div> : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="aptitude-code-block">
+                      <h4>Public Test Cases</h4>
+                      <div className="aptitude-code-examples">
+                        {(currentQuestion.public_test_cases || []).map((testCase, index) => (
+                          <div key={`public-${index}`} className="aptitude-code-example">
+                            <div><strong>Input:</strong> {testCase.input}</div>
+                            <div><strong>Expected:</strong> {testCase.expected_output}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <label className="aptitude-code-answer" htmlFor="coding-response">
-                    <span>Your solution / approach</span>
-                    <textarea id="coding-response" value={answers[currentIndex] || ""} onChange={(event) => handleSelectAnswer(event.target.value)} placeholder="Write your approach, pseudocode, or code here..." />
-                  </label>
+
+                  <div className="aptitude-editor-panel">
+                    <div className="aptitude-editor-toolbar">
+                      <div>
+                        <span className="aptitude-chip">Editor</span>
+                      </div>
+                      <select
+                        className="aptitude-language-select"
+                        value={codingLanguage}
+                        onChange={(event) => {
+                          const nextLanguage = event.target.value;
+                          setCodingLanguage(nextLanguage);
+                          setAnswers((currentAnswers) => {
+                            const nextAnswers = [...currentAnswers];
+                            nextAnswers[currentIndex] = getStarterCode(currentQuestion, nextLanguage);
+                            return nextAnswers;
+                          });
+                          setCodingRunResults((current) => {
+                            const next = [...current];
+                            next[currentIndex] = null;
+                            return next;
+                          });
+                          setCodingSubmitResults((current) => {
+                            const next = [...current];
+                            next[currentIndex] = null;
+                            return next;
+                          });
+                          setCodingError("");
+                        }}
+                      >
+                        {runtimeLanguages.map((language) => (
+                          <option key={language.id} value={language.id}>
+                            {language.available === false ? `${language.label} (Unavailable)` : language.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedRuntime?.available === false ? (
+                      <div className="aptitude-code-error">
+                        {selectedRuntime.label} is shown in the selector, but it is not installed on the backend machine yet.
+                      </div>
+                    ) : null}
+
+                    <label className="aptitude-code-answer" htmlFor="coding-response">
+                      <span>Code Editor</span>
+                      <textarea
+                        id="coding-response"
+                        value={answers[currentIndex] || ""}
+                        onChange={(event) => handleSelectAnswer(event.target.value)}
+                        placeholder={`Complete the main logic in ${selectedRuntime?.label || "your selected language"}...`}
+                        className="aptitude-code-editor"
+                      />
+                    </label>
+
+                    <div className="aptitude-flow-actions aptitude-coding-actions">
+                      <button
+                        type="button"
+                        className="small-start-btn aptitude-secondary-btn"
+                        onClick={() => {
+                          setAnswers((currentAnswers) => {
+                            const nextAnswers = [...currentAnswers];
+                            nextAnswers[currentIndex] = getStarterCode(currentQuestion, codingLanguage);
+                            return nextAnswers;
+                          });
+                          setCodingRunResults((current) => {
+                            const next = [...current];
+                            next[currentIndex] = null;
+                            return next;
+                          });
+                          setCodingSubmitResults((current) => {
+                            const next = [...current];
+                            next[currentIndex] = null;
+                            return next;
+                          });
+                          setCodingError("");
+                        }}
+                      >
+                        Reset Template
+                      </button>
+                      <button type="button" className="small-start-btn aptitude-secondary-btn" onClick={handleRunCode} disabled={codingLoading || !(answers[currentIndex] || "").trim() || selectedRuntime?.available === false}>
+                        Run Code
+                      </button>
+                      <button type="button" className="mock-btn aptitude-primary-btn" onClick={() => handleSubmitCode("manual")} disabled={codingLoading || !(answers[currentIndex] || "").trim() || selectedRuntime?.available === false}>
+                        Submit Solution
+                      </button>
+                    </div>
+
+                    {codingError ? <div className="aptitude-code-error">{codingError}</div> : null}
+
+                    {currentCodingRunResult ? (
+                      <div className="aptitude-code-results">
+                        <div className="aptitude-code-results-header">
+                          <strong>Run Result</strong>
+                          <span>{currentCodingRunResult.passed}/{currentCodingRunResult.total} public tests passed</span>
+                        </div>
+                        {(currentCodingRunResult.results || []).map((result) => (
+                          <div key={`run-${result.index}`} className={`aptitude-code-result-card ${result.passed ? "is-pass" : "is-fail"}`}>
+                            <strong>Test Case {result.index}</strong>
+                            <div>Input: {result.input || "N/A"}</div>
+                            <div>Expected: {result.expected_output || "N/A"}</div>
+                            <div>Actual: {result.actual_output || "N/A"}</div>
+                            {result.stderr ? <div>Error: {result.stderr}</div> : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ) : (
                 <div className="aptitude-options-grid">
@@ -451,7 +952,7 @@ function AptitudeTest() {
               )}
             </div>
 
-            {selectedSectionConfig.mode !== "coding" && (
+            {!codingMode && (
               <>
                 <div className="aptitude-question-map">
                   {questions.map((question, index) => (
@@ -464,22 +965,16 @@ function AptitudeTest() {
                 <div className="aptitude-flow-actions">
                   <button type="button" className="small-start-btn aptitude-secondary-btn" onClick={() => setCurrentIndex((current) => Math.max(0, current - 1))} disabled={currentIndex === 0}>Previous</button>
                   <div className="aptitude-inline-actions">
-                    <button type="button" className="small-start-btn aptitude-secondary-btn" onClick={() => handleFinish("manual")}>Submit Now</button>
+                    <button type="button" className="small-start-btn aptitude-secondary-btn" onClick={() => handleFinishMcq("manual")}>Submit Now</button>
                     <button type="button" className="mock-btn aptitude-primary-btn" onClick={() => setCurrentIndex((current) => Math.min(questions.length - 1, current + 1))} disabled={currentIndex === questions.length - 1}>Next Question</button>
                   </div>
                 </div>
               </>
             )}
-
-            {selectedSectionConfig.mode === "coding" && (
-              <div className="aptitude-flow-actions aptitude-coding-actions">
-                <button type="button" className="small-start-btn aptitude-secondary-btn" onClick={handleOpenSetup}>Change Section</button>
-                <button type="button" className="mock-btn aptitude-primary-btn" onClick={() => handleFinish("manual")}>Submit Solution</button>
-              </div>
-            )}
           </div>
         </div>
       )}
+
       {stage === "summary" && summary && (
         <div className="mock-section">
           <div className="aptitude-flow-card aptitude-summary-shell">
@@ -487,56 +982,106 @@ function AptitudeTest() {
               <div>
                 <span className="aptitude-chip">Summary</span>
                 <h2>{summary.autoSubmitted ? "Time is over. Your test was auto-submitted." : "Your test summary is ready."}</h2>
-                <p>{summary.mode === "coding" ? "Below is your submitted solution and the reference approach for the coding challenge." : "Below is the answer review with your chosen option and the correct answer for every question."}</p>
+                <p>{summary.mode === "coding" ? "Below is your coding submission, passed test cases, and AI analysis." : "Below is the answer review with your chosen option and the correct answer for every question."}</p>
               </div>
               <div className="aptitude-summary-score">
-                <span>{summary.mode === "coding" ? "Attempted" : "Score"}</span>
+                <span>{summary.mode === "coding" ? "Passed" : "Score"}</span>
                 <strong>{summary.score}/{summary.totalQuestions}</strong>
                 <small>{summary.answeredCount} answered</small>
               </div>
             </div>
 
-            <div className="aptitude-summary-grid">
-              <div className="aptitude-summary-stat">
-                <span>Section</span>
-                <strong>{getSectionConfig(summary.sectionId).title}</strong>
-              </div>
-              <div className="aptitude-summary-stat">
-                <span>Total questions</span>
-                <strong>{summary.totalQuestions}</strong>
-              </div>
-              <div className="aptitude-summary-stat">
-                <span>{summary.mode === "coding" ? "Submitted" : "Correct answers"}</span>
-                <strong>{summary.score}</strong>
-              </div>
-              <div className="aptitude-summary-stat">
-                <span>Not answered</span>
-                <strong>{summary.totalQuestions - summary.answeredCount}</strong>
-              </div>
-            </div>
-
-            <div className="aptitude-review-list">
-              {summary.items.map((item, index) => (
-                <article key={item.sessionId} className={`aptitude-review-card ${summary.mode === "coding" ? "is-coding" : item.isCorrect ? "is-correct" : "is-incorrect"}`}>
-                  <div className="aptitude-review-top">
-                    <span>Question {index + 1}</span>
-                    <strong>{summary.mode === "coding" ? "Reference review" : item.isCorrect ? "Correct" : "Review needed"}</strong>
-                  </div>
-                  <h3>{item.question}</h3>
-                  {item.prompt && <p className="aptitude-review-prompt">{item.prompt}</p>}
-                  <div className="aptitude-review-answer-grid">
-                    <div>
-                      <span>{summary.mode === "coding" ? "Your response" : "Your answer"}</span>
-                      <p>{item.selectedAnswer}</p>
+            {summary.mode === "coding" ? (
+              <div className="aptitude-review-list">
+                {(summary.codingItems || []).map((item, index) => (
+                  <article key={`coding-summary-${index}`} className="aptitude-review-card is-coding">
+                    <div className="aptitude-review-top">
+                      <span>Coding Question {index + 1}</span>
+                      <strong>{item.execution?.passed || 0}/{item.execution?.total || 0} tests passed</strong>
                     </div>
-                    <div>
-                      <span>{summary.mode === "coding" ? "Reference solution" : "Correct answer"}</span>
-                      <p>{item.correctAnswer}</p>
+                    <h3>{item.challenge?.title}</h3>
+                    <p className="aptitude-review-prompt">{item.challenge?.description}</p>
+                    <div className="aptitude-review-answer-grid">
+                      <div>
+                        <span>Language</span>
+                        <p>{item.language || "N/A"}</p>
+                      </div>
+                      <div>
+                        <span>AI review</span>
+                        <p>{item.review?.summary || "No AI review available."}</p>
+                      </div>
                     </div>
+                    <div className="aptitude-code-results">
+                      <div className="aptitude-code-results-header">
+                        <strong>Test Case Results</strong>
+                        <span>{item.execution?.passed || 0}/{item.execution?.total || 0}</span>
+                      </div>
+                      {(item.execution?.results || []).map((result) => (
+                        <div key={`summary-${index}-${result.index}`} className={`aptitude-code-result-card ${result.passed ? "is-pass" : "is-fail"}`}>
+                          <strong>Test Case {result.index}</strong>
+                          <div>Input: {result.input || "N/A"}</div>
+                          <div>Expected: {result.expected_output || "N/A"}</div>
+                          <div>Actual: {result.actual_output || "N/A"}</div>
+                          {result.stderr ? <div>Error: {result.stderr}</div> : null}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="aptitude-review-answer-grid">
+                      <div>
+                        <span>Your code</span>
+                        <p className="aptitude-code-summary-text">{item.sourceCode || "No code submitted."}</p>
+                      </div>
+                      <div>
+                        <span>Improvement suggestions</span>
+                        <p className="aptitude-code-summary-text">{(item.review?.next_steps || []).join(" | ") || "No suggestions available."}</p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="aptitude-summary-grid">
+                  <div className="aptitude-summary-stat">
+                    <span>Section</span>
+                    <strong>{getSectionConfig(summary.sectionId).title}</strong>
                   </div>
-                </article>
-              ))}
-            </div>
+                  <div className="aptitude-summary-stat">
+                    <span>Total questions</span>
+                    <strong>{summary.totalQuestions}</strong>
+                  </div>
+                  <div className="aptitude-summary-stat">
+                    <span>Correct answers</span>
+                    <strong>{summary.score}</strong>
+                  </div>
+                  <div className="aptitude-summary-stat">
+                    <span>Not answered</span>
+                    <strong>{summary.totalQuestions - summary.answeredCount}</strong>
+                  </div>
+                </div>
+                <div className="aptitude-review-list">
+                  {summary.items.map((item, index) => (
+                    <article key={item.sessionId} className={`aptitude-review-card ${item.isCorrect ? "is-correct" : "is-incorrect"}`}>
+                      <div className="aptitude-review-top">
+                        <span>Question {index + 1}</span>
+                        <strong>{item.isCorrect ? "Correct" : "Review needed"}</strong>
+                      </div>
+                      <h3>{item.question}</h3>
+                      <div className="aptitude-review-answer-grid">
+                        <div>
+                          <span>Your answer</span>
+                          <p>{item.selectedAnswer}</p>
+                        </div>
+                        <div>
+                          <span>Correct answer</span>
+                          <p>{item.correctAnswer}</p>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
 
             <div className="aptitude-flow-actions">
               <button type="button" className="small-start-btn aptitude-secondary-btn" onClick={handleOpenSetup}>Practice Again</button>
