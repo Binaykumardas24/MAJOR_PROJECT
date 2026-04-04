@@ -10,6 +10,7 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 from config import load_backend_env
+from database import interview_sessions_collection
 
 load_backend_env()
 
@@ -161,51 +162,40 @@ class ProviderError(Exception):
     pass
 
 
-def _session_store_dir() -> str:
-    path = os.path.join(os.path.dirname(__file__), ".runtime", "interview_sessions")
-    os.makedirs(path, exist_ok=True)
-    return path
-
-
-def _session_file_path(session_id: str) -> str:
-    safe_session_id = re.sub(r"[^a-zA-Z0-9_-]", "", (session_id or "").strip())
-    return os.path.join(_session_store_dir(), f"{safe_session_id}.json")
-
-
-def _persist_session(session: Dict[str, Any]) -> None:
+async def _persist_session(session: Dict[str, Any]) -> None:
     session_id = _normalize_text(session.get("session_id") or "")
     if not session_id:
         return
-    file_path = _session_file_path(session_id)
-    with open(file_path, "w", encoding="utf-8") as handle:
-        json.dump(session, handle, ensure_ascii=False)
+    await interview_sessions_collection.replace_one(
+        {"session_id": session_id},
+        session,
+        upsert=True,
+    )
 
 
-def _load_persisted_session(session_id: str) -> Optional[Dict[str, Any]]:
-    file_path = _session_file_path(session_id)
-    if not os.path.exists(file_path):
+async def _load_persisted_session(session_id: str) -> Optional[Dict[str, Any]]:
+    normalized_session_id = _normalize_text(session_id)
+    if not normalized_session_id:
         return None
-    try:
-        with open(file_path, "r", encoding="utf-8") as handle:
-            session = json.load(handle)
-    except (OSError, json.JSONDecodeError):
+    session = await interview_sessions_collection.find_one(
+        {"session_id": normalized_session_id},
+        {"_id": 0},
+    )
+    if not isinstance(session, dict):
         return None
 
     created_at = float(session.get("created_at") or 0)
     if created_at and (time.time() - created_at) > ACTIVE_SESSION_TTL_SECONDS:
-        try:
-            os.remove(file_path)
-        except OSError:
-            pass
+        await interview_sessions_collection.delete_one({"session_id": normalized_session_id})
         return None
     return session if isinstance(session, dict) else None
 
 
-def _get_session(session_id: str) -> Optional[Dict[str, Any]]:
+async def _get_session(session_id: str) -> Optional[Dict[str, Any]]:
     session = INTERVIEW_SESSIONS.get(session_id)
     if session:
         return session
-    session = _load_persisted_session(session_id)
+    session = await _load_persisted_session(session_id)
     if session:
         INTERVIEW_SESSIONS[session_id] = session
     return session
@@ -2025,7 +2015,7 @@ async def _create_adaptive_interview_session(
     )
 
     INTERVIEW_SESSIONS[session_id] = session
-    _persist_session(session)
+    await _persist_session(session)
     return {
         "session_id": session_id,
         "assistant_intro": session["assistant_intro"],
@@ -2419,7 +2409,7 @@ Rules:
         "saved_report_user_ids": [],
     }
     INTERVIEW_SESSIONS[session_id] = session
-    _persist_session(session)
+    await _persist_session(session)
 
     return {
         "session_id": session_id,
@@ -2437,7 +2427,7 @@ async def evaluate_interview_answer(
     question_index: int,
     answer: str
 ) -> Dict[str, Any]:
-    session = _get_session(session_id)
+    session = await _get_session(session_id)
     if not session:
         raise ProviderError("Interview session not found.")
     if _is_session_completed(session):
@@ -2456,7 +2446,7 @@ async def evaluate_interview_answer(
             question,
             answer_text,
         )
-        _persist_session(session)
+        await _persist_session(session)
         return result
 
     context_summary = _context_summary(session["context"])
@@ -2563,7 +2553,7 @@ Rules:
         evaluations[question_index] = result
     else:
         evaluations.append(result)
-    _persist_session(session)
+    await _persist_session(session)
 
     is_complete = question_index >= len(questions) - 1
     next_question = None if is_complete else questions[question_index + 1]["question"]
@@ -2624,7 +2614,7 @@ def _fallback_summary(session: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def complete_interview_session(session_id: str, ended_early: bool = False) -> Dict[str, Any]:
-    session = _get_session(session_id)
+    session = await _get_session(session_id)
     if not session:
         raise ProviderError("Interview session not found.")
 
@@ -2633,7 +2623,7 @@ async def complete_interview_session(session_id: str, ended_early: bool = False)
         existing_ended_early = bool(session.get("ended_early", False))
         resolved_ended_early = bool(ended_early or existing_ended_early)
         session["ended_early"] = resolved_ended_early
-        _persist_session(session)
+        await _persist_session(session)
         adaptive_state = session.get("meta", {}).get("adaptive_state") or {}
         evaluations = _scored_evaluations(session)
         return {
@@ -2706,7 +2696,7 @@ Return valid JSON:
     session["ended_early"] = bool(ended_early)
     session["completed_at"] = time.time()
     session["providers"]["summary_provider"] = provider
-    _persist_session(session)
+    await _persist_session(session)
     return {
         **summary,
         "session_id": session_id,
@@ -2725,19 +2715,19 @@ Return valid JSON:
     }
 
 
-def get_session_payload(session_id: str) -> Optional[Dict[str, Any]]:
-    return _get_session(session_id)
+async def get_session_payload(session_id: str) -> Optional[Dict[str, Any]]:
+    return await _get_session(session_id)
 
 
-def get_session_status(session_id: str) -> Optional[Dict[str, Any]]:
-    session = _get_session(session_id)
+async def get_session_status(session_id: str) -> Optional[Dict[str, Any]]:
+    session = await _get_session(session_id)
     if not session:
         return None
     return _build_session_status_payload(session)
 
 
-def mark_session_report_saved(session_id: str, user_id: str) -> Optional[Dict[str, Any]]:
-    session = _get_session(session_id)
+async def mark_session_report_saved(session_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+    session = await _get_session(session_id)
     normalized_user_id = _normalize_text(user_id)
     if not session or not normalized_user_id:
         return session
@@ -2745,5 +2735,5 @@ def mark_session_report_saved(session_id: str, user_id: str) -> Optional[Dict[st
     saved_user_ids = session.setdefault("saved_report_user_ids", [])
     if normalized_user_id not in saved_user_ids:
         saved_user_ids.append(normalized_user_id)
-        _persist_session(session)
+        await _persist_session(session)
     return session

@@ -1,4 +1,7 @@
 import os
+import base64
+import re
+from io import BytesIO
 from datetime import datetime, timezone
 import numpy as np
 from fastapi import (
@@ -20,6 +23,12 @@ from auth_utils import (
     SECRET_KEY,
     ALGORITHM
 )
+from coding_ai import (
+    evaluate_coding_submission,
+    generate_coding_challenge,
+    get_coding_runtime_status,
+    run_code_against_tests,
+)
 from interview_ai import (
     ProviderError,
     complete_interview_session,
@@ -32,6 +41,190 @@ from interview_ai import (
 )
 
 app = FastAPI()
+
+
+def _extract_pdf_text_from_bytes(pdf_bytes: bytes) -> str:
+    readers = []
+    try:
+        from pypdf import PdfReader as PypdfReader  # type: ignore
+        readers.append(PypdfReader)
+    except Exception:
+        pass
+    try:
+        from PyPDF2 import PdfReader as PyPdf2Reader  # type: ignore
+        readers.append(PyPdf2Reader)
+    except Exception:
+        pass
+
+    for reader_cls in readers:
+        try:
+            reader = reader_cls(BytesIO(pdf_bytes))
+            text_parts = []
+            for page in reader.pages:
+                text_parts.append(page.extract_text() or "")
+            text = "\n".join(text_parts).strip()
+            if text:
+                return text
+        except Exception:
+            continue
+    return ""
+
+
+def _decode_pdf_data_url(data_url: str) -> bytes:
+    if not data_url or "," not in data_url:
+        return b""
+    try:
+        _, encoded = data_url.split(",", 1)
+        return base64.b64decode(encoded)
+    except Exception:
+        return b""
+
+
+def _normalize_resume_text(value: str) -> str:
+    return re.sub(r"\s+", " ", (value or "")).strip()
+
+
+def _resume_signal_details(text: str, file_name: str = "") -> dict:
+    normalized = _normalize_resume_text(text)
+    lowered = normalized.lower()
+    filename = (file_name or "").lower()
+    skill_hits = _extract_resume_skills(text)
+    section_hits = [keyword for keyword in RESUME_SECTION_KEYWORDS if keyword in lowered]
+
+    has_email = bool(re.search(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", text, re.I))
+    has_phone = bool(re.search(r"(\+?\d[\d\s().-]{8,}\d)", text))
+    has_profile_link = bool(re.search(r"(linkedin|github|portfolio)", lowered))
+    has_education = bool(re.search(r"\b(bachelor|master|b\.tech|m\.tech|degree|university|college|school)\b", lowered))
+    has_experience = bool(re.search(r"\b(intern|experience|engineer|developer|manager|analyst|specialist|coordinator|student|worked|company)\b", lowered))
+    has_project = bool(re.search(r"\b(project|developed|built|created|implemented|designed)\b", lowered))
+    filename_says_resume = any(token in filename for token in ["resume", "cv", "curriculum vitae"])
+
+    score = 0
+    if filename_says_resume:
+        score += 2
+    if has_email:
+        score += 2
+    if has_phone:
+        score += 2
+    if has_profile_link:
+        score += 1
+    if has_education:
+        score += 1
+    if has_experience:
+        score += 2
+    if has_project:
+        score += 1
+    if skill_hits:
+        score += min(3, max(1, len(skill_hits) // 2 or 1))
+    if section_hits:
+        score += min(4, len(section_hits))
+
+    return {
+        "normalized": normalized,
+        "score": score,
+        "text_length": len(normalized),
+        "filename_says_resume": filename_says_resume,
+        "has_email": has_email,
+        "has_phone": has_phone,
+        "has_profile_link": has_profile_link,
+        "has_education": has_education,
+        "has_experience": has_experience,
+        "has_project": has_project,
+        "skill_hits": skill_hits,
+        "section_hits": section_hits,
+    }
+
+
+def _looks_like_resume(text: str, file_name: str = "") -> tuple[bool, str]:
+    details = _resume_signal_details(text, file_name)
+
+    if details["text_length"] < 25 and not details["filename_says_resume"]:
+        return False, "This file does not contain enough readable content to verify it as a resume or CV."
+
+    if details["score"] >= 5:
+        return True, ""
+
+    short_resume_like = (
+        details["text_length"] >= 35 and
+        (
+            details["filename_says_resume"] or
+            (details["has_email"] and details["has_experience"]) or
+            (details["has_phone"] and details["has_education"]) or
+            (details["has_experience"] and bool(details["skill_hits"])) or
+            len(details["section_hits"]) >= 2
+        )
+    )
+    if short_resume_like:
+        return True, ""
+
+    return False, "This document does not look like a resume or CV. Please upload a proper resume/CV file."
+
+
+def _extract_resume_skills(text: str) -> list[str]:
+    normalized = _normalize_resume_text(text).lower()
+    found = []
+    for skill in KNOWN_RESUME_SKILLS:
+        pattern = r"\b" + re.escape(skill.lower()) + r"\b"
+        if re.search(pattern, normalized):
+            found.append(skill.title() if skill.islower() else skill)
+    return found[:24]
+
+
+def _extract_resume_lines(text: str, limit: int = 8) -> list[str]:
+    lines = [line.strip(" -•\t") for line in (text or "").splitlines()]
+    cleaned = [line for line in lines if len(line.split()) >= 2]
+    return cleaned[:limit]
+
+
+def _build_resume_analysis_payload(text: str, file_name: str = "") -> dict:
+    normalized = _normalize_resume_text(text)
+    lines = _extract_resume_lines(text, limit=20)
+    skills = _extract_resume_skills(text)
+
+    education = [
+        line for line in lines
+        if re.search(r"\b(university|college|bachelor|master|degree|b\.tech|m\.tech|school)\b", line, re.I)
+    ][:5]
+    experience = [
+        line for line in lines
+        if re.search(r"\b(experience|intern|engineer|developer|manager|analyst|specialist|worked|company)\b", line, re.I)
+    ][:6]
+    projects = [
+        line for line in lines
+        if re.search(r"\b(project|developed|built|created|implemented|designed)\b", line, re.I)
+    ][:6]
+
+    likely_name = lines[0] if lines else ""
+    if re.search(r"(resume|cv|education|skills|experience)", likely_name, re.I):
+        likely_name = ""
+
+    analysis_parts = [
+        f"Candidate name: {likely_name or 'Not clearly detected'}",
+        f"Skills: {', '.join(skills) if skills else 'Not clearly extracted'}",
+        f"Education: {' | '.join(education) if education else 'Not clearly extracted'}",
+        f"Experience: {' | '.join(experience) if experience else 'Not clearly extracted'}",
+        f"Projects: {' | '.join(projects) if projects else 'Not clearly extracted'}",
+        f"Resume text: {normalized[:2400]}",
+    ]
+
+    return {
+        "candidate_name": likely_name,
+        "skills": skills,
+        "education": education,
+        "experience_highlights": experience,
+        "project_highlights": projects,
+        "contact_found": bool(re.search(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", text, re.I)),
+        "analysis_text": "\n".join(analysis_parts)[:4000],
+        "suggested_roles": [
+            role for role in [
+                "Software Engineer" if any(item.lower() in normalized for item in ["python", "java", "react", "node", "api", "sql"]) else "",
+                "Data Scientist" if any(item.lower() in normalized for item in ["machine learning", "pandas", "numpy", "tensorflow", "pytorch"]) else "",
+                "Business Analyst" if any(item.lower() in normalized for item in ["excel", "power bi", "tableau", "analysis"]) else "",
+                "Product Manager" if any(item.lower() in normalized for item in ["roadmap", "stakeholder", "product"]) else "",
+            ] if role
+        ][:4],
+        "source_file_name": file_name,
+    }
 
 # ---------------- CORS ----------------
 app.add_middleware(
@@ -343,10 +536,63 @@ async def ai_provider_status():
         raise HTTPException(status_code=500, detail=f"Failed to inspect AI providers: {exc}")
 
 
+@app.get("/coding/runtime-status")
+async def coding_runtime_status():
+    try:
+        return get_coding_runtime_status()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to inspect coding runtimes: {exc}")
+
+
+@app.post("/coding/challenge")
+async def create_coding_challenge(payload: dict = Body(...)):
+    try:
+        difficulty = payload.get("difficulty") or "easy"
+        excluded_questions = payload.get("excluded_questions") or []
+        challenge = await generate_coding_challenge(difficulty, excluded_questions=excluded_questions)
+        return {"challenge": challenge}
+    except ProviderError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to generate coding challenge: {exc}")
+
+
+@app.post("/coding/run")
+async def run_coding_submission(payload: dict = Body(...)):
+    try:
+        language = (payload.get("language") or "").strip().lower()
+        source_code = payload.get("source_code") or ""
+        test_cases = payload.get("test_cases") or []
+        return run_code_against_tests(language, source_code, test_cases)
+    except ProviderError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to run coding submission: {exc}")
+
+
+@app.post("/coding/submit")
+async def submit_coding_solution(payload: dict = Body(...)):
+    try:
+        language = (payload.get("language") or "").strip().lower()
+        source_code = payload.get("source_code") or ""
+        challenge = payload.get("challenge") or {}
+        all_cases = list(challenge.get("public_test_cases") or []) + list(challenge.get("hidden_test_cases") or [])
+        execution = run_code_against_tests(language, source_code, all_cases)
+        review = await evaluate_coding_submission(challenge, language, source_code, execution)
+        return {
+            "execution": execution,
+            "review": review,
+        }
+    except ProviderError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to submit coding solution: {exc}")
+
+
 @app.get("/ai-interview/session/{session_id}")
 async def ai_interview_session_status(session_id: str):
     try:
-        session = get_session_status(session_id)
+        session = await get_session_status(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Interview session not found")
         return session
@@ -378,7 +624,7 @@ async def complete_ai_interview(
 ):
     try:
         summary = await complete_interview_session(session_id, ended_early=ended_early)
-        session = get_session_payload(session_id)
+        session = await get_session_payload(session_id)
         current_user = None
         save_warning = None
 
@@ -418,7 +664,7 @@ async def complete_ai_interview(
                         {"_id": current_user["_id"]},
                         {"$push": {"interview_results": interview_result}},
                     )
-                    session = mark_session_report_saved(session_id, current_user_id) or session
+                    session = await mark_session_report_saved(session_id, current_user_id) or session
             except Exception as save_exc:
                 save_warning = f"Interview completed, but saving the report failed: {save_exc}"
 

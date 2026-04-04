@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
 const Header = () => {
@@ -12,24 +13,33 @@ const Header = () => {
       minHeight: '60px',
       boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
     }}>
-      <img
-        src={logo}
-        alt="APIS Logo"
+      <Link
+        to="/"
         style={{
-          height: '40px',
-          width: '40px',
-          borderRadius: '50%',
-          marginRight: '16px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+          display: 'flex',
+          alignItems: 'center',
+          textDecoration: 'none'
         }}
-      />
-      <span style={{
-        fontSize: '22px',
-        fontWeight: 'bold',
-        color: '#333',
-        letterSpacing: '2px',
-        marginRight: 'auto'
-      }}>APIS</span>
+      >
+        <img
+          src={logo}
+          alt="APIS Logo"
+          style={{
+            height: '40px',
+            width: '40px',
+            borderRadius: '50%',
+            marginRight: '16px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+          }}
+        />
+        <span style={{
+          fontSize: '22px',
+          fontWeight: 'bold',
+          color: '#333',
+          letterSpacing: '2px',
+          marginRight: 'auto'
+        }}>APIS</span>
+      </Link>
     </nav>
   );
 };
