@@ -1,33 +1,84 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { LayoutDashboard, LogOut, Settings, Users } from "lucide-react";
+import ImageCropModal from "./ImageCropModal";
 import logo from "../assets/logo.png";
 
 export default function MiniNavbar() {
+  const navigate = useNavigate();
   const location = useLocation();
-  const user = React.useMemo(() => {
+  const popupRef = useRef(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [cropModalImg, setCropModalImg] = useState(null);
+  const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user"));
     } catch {
       return null;
     }
+  });
+
+  const getUserDisplayName = (currentUser) => {
+    if (!currentUser) return "User";
+    if (currentUser.first_name && currentUser.last_name) {
+      return `${currentUser.first_name} ${currentUser.last_name}`;
+    }
+    if (currentUser.first_name) return currentUser.first_name;
+    if (currentUser.last_name) return currentUser.last_name;
+    if (currentUser.email) return currentUser.email.split("@")[0];
+    return "User";
+  };
+
+  const userDisplayName = getUserDisplayName(user);
+  const userInitial = userDisplayName ? userDisplayName[0].toUpperCase() : "U";
+
+  const closeMobileMenu = () => setMobileOpen(false);
+
+  const performLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.dispatchEvent(new Event("authchange"));
+    setUser(null);
+    setShowProfile(false);
+    setShowLogoutConfirm(false);
+    navigate("/");
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (popupRef.current && !popupRef.current.contains(e.target)) {
+        setShowProfile(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const profileImage = user?.profile_image || null;
-  const userInitial = user?.email ? user.email[0].toUpperCase() : "U";
-  let userDisplayName = "User";
-  if (user?.first_name && user?.last_name) {
-    userDisplayName = `${user.first_name} ${user.last_name}`;
-  } else if (user?.first_name) {
-    userDisplayName = user.first_name;
-  } else if (user?.email) {
-    userDisplayName = user.email.split("@")[0];
-  }
+  useEffect(() => {
+    setMobileOpen(false);
+    setShowProfile(false);
+    setShowLogoutConfirm(false);
+  }, [location.pathname]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 900) {
+        setMobileOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <div className="category-topnav">
       <div className="navbar-left">
-        <Link to="/" className="navbar-home-link">
+        <Link to="/" className="navbar-home-link" onClick={closeMobileMenu}>
           <img
             src={logo}
             alt="APIS Logo"
@@ -42,46 +93,224 @@ export default function MiniNavbar() {
         </Link>
       </div>
 
-      <div className="navbar-center">
+      <div className={`navbar-center ${mobileOpen ? "mobile-open" : ""}`}>
         <div className="nav-links">
-          <Link to="/" className={`nav-link ${location.pathname === "/" ? "active" : ""}`}>
+          <Link to="/" className={`nav-link ${location.pathname === "/" ? "active" : ""}`} onClick={closeMobileMenu}>
             Home
           </Link>
-          <Link to="/hr-interview" className={`nav-link ${location.pathname === "/hr-interview" ? "active" : ""}`}>
+          <Link to="/hr-interview" className={`nav-link ${location.pathname === "/hr-interview" ? "active" : ""}`} onClick={closeMobileMenu}>
             HR/Behavioral
           </Link>
-          <Link to="/technical-interview" className={`nav-link ${location.pathname === "/technical-interview" ? "active" : ""}`}>
+          <Link to="/technical-interview" className={`nav-link ${location.pathname === "/technical-interview" ? "active" : ""}`} onClick={closeMobileMenu}>
             Technical
           </Link>
-          <Link to="/resume-interview" className={`nav-link ${location.pathname === "/resume-interview" ? "active" : ""}`}>
+          <Link to="/resume-interview" className={`nav-link ${location.pathname === "/resume-interview" ? "active" : ""}`} onClick={closeMobileMenu}>
             Resume Based Interview
           </Link>
-          <Link to="/mock-interview" className={`nav-link ${location.pathname === "/mock-interview" ? "active" : ""}`}>
+          <Link to="/mock-interview" className={`nav-link ${location.pathname === "/mock-interview" ? "active" : ""}`} onClick={closeMobileMenu}>
             Mock
           </Link>
-          <Link to="/aptitude-test" className={`nav-link ${location.pathname === "/aptitude-test" ? "active" : ""}`}>
+          <Link to="/aptitude-test" className={`nav-link ${location.pathname === "/aptitude-test" ? "active" : ""}`} onClick={closeMobileMenu}>
             Aptitude
           </Link>
         </div>
       </div>
 
-      {user ? (
-        <div className="navbar-right">
-          <div className="profile-card mini-profile-card">
-            <div className="profile-icon mini-profile-icon">
-            {profileImage ? (
-              <img src={profileImage} alt="profile" />
-            ) : (
-              userInitial
+      <div className="nav-right navbar-right mini-navbar-right">
+        {user ? (
+          <div className="profile-area" ref={popupRef}>
+            <button
+              type="button"
+              className="profile-card mini-profile-card"
+              onClick={() => {
+                closeMobileMenu();
+                setShowLogoutConfirm(false);
+                setShowProfile((prev) => !prev);
+              }}
+            >
+              <div className="profile-icon mini-profile-icon">
+                {user?.profile_image ? (
+                  <img src={user.profile_image} alt="Profile" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+                ) : (
+                  userInitial
+                )}
+              </div>
+              <div className="profile-user-details">
+                <span className="profile-user-name">{userDisplayName}</span>
+                <span className="profile-user-email">{user?.email}</span>
+              </div>
+            </button>
+
+            {showProfile && (
+              <div className="profile-popup pro-popup-ui">
+                <div className="profile-popup-top">
+                  <div className="profile-img-edit">
+                    <div className="profile-img-circle" style={{ position: "relative" }}>
+                      {user?.profile_image ? (
+                        <img src={user.profile_image} alt="Profile" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+                      ) : (
+                        <span className="profile-img-initial">{userInitial}</span>
+                      )}
+                      <span
+                        className="profile-img-edit-icon"
+                        title="Edit Photo"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          document.getElementById("mini-profile-img-input").click();
+                        }}
+                      >
+                        ✏️
+                      </span>
+                      <input
+                        id="mini-profile-img-input"
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => setCropModalImg(ev.target.result);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+
+                      {cropModalImg && (
+                        <ImageCropModal
+                          image={cropModalImg}
+                          onClose={() => setCropModalImg(null)}
+                          onSave={async (img) => {
+                            try {
+                              setCropModalImg(null);
+                              const token = localStorage.getItem("token");
+                              const payload = { profile_image: img };
+                              const res = await axios.put(
+                                "http://127.0.0.1:8000/profile",
+                                payload,
+                                {
+                                  headers: {
+                                    Authorization: "Bearer " + token
+                                  }
+                                }
+                              );
+
+                              const existingUser = JSON.parse(localStorage.getItem("user"));
+                              localStorage.setItem(
+                                "user",
+                                JSON.stringify({
+                                  ...existingUser,
+                                  ...res.data.user
+                                })
+                              );
+                              setUser((prev) => ({ ...prev, ...res.data.user }));
+                            } catch (err) {
+                              alert(err.response?.data?.detail || "Profile image update failed");
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="profile-popup-username">{userDisplayName}</div>
+                  <div className="profile-popup-email">{user?.email}</div>
+                </div>
+                <div className="profile-popup-links">
+                  <button className="profile-popup-link profile-popup-link-row" onClick={() => navigate("/dashboard")}>
+                    <span className="profile-popup-link-icon"><LayoutDashboard size={28} color="#111" style={{ marginRight: 12 }} /></span>
+                    <span className="profile-popup-link-text">My Dashboard</span>
+                  </button>
+                  <button className="profile-popup-link profile-popup-link-row" onClick={() => setShowProfile("interviews")}>
+                    <span className="profile-popup-link-icon"><Users size={28} color="#111" style={{ marginRight: 12 }} /></span>
+                    <span className="profile-popup-link-text">My Interviews</span>
+                  </button>
+                  <button className="profile-popup-link profile-popup-link-row" onClick={() => setShowProfile("settings")}>
+                    <span className="profile-popup-link-icon"><Settings size={28} color="#111" style={{ marginRight: 12 }} /></span>
+                    <span className="profile-popup-link-text">Settings</span>
+                  </button>
+                </div>
+                {showProfile === "interviews" && (
+                  <div className="profile-popup-section">
+                    <div className="profile-popup-section-title">My Interviews</div>
+                    <div className="profile-popup-interviews-list">
+                      <div className="profile-popup-interview-item">No interviews found.</div>
+                    </div>
+                  </div>
+                )}
+                {showProfile === "settings" && (
+                  <div className="profile-popup-section">
+                    <div className="profile-popup-section-title">Settings</div>
+                    <button className="edit-profile-btn" onClick={() => navigate("/profile")}>
+                      Edit Profile
+                    </button>
+                  </div>
+                )}
+                <button className="logout-btn profile-popup-link-row" onClick={() => setShowLogoutConfirm(true)}>
+                  <span className="profile-popup-link-icon"><LogOut size={28} color="#111" style={{ marginRight: 12 }} /></span>
+                  <span className="profile-popup-link-text">Logout</span>
+                </button>
+              </div>
             )}
-            </div>
-            <div className="profile-user-details">
-              <span className="profile-user-name">{userDisplayName}</span>
-              <span className="profile-user-email">{user?.email}</span>
-            </div>
+
+            {showLogoutConfirm && (
+              <div className="modal-overlay" onClick={() => setShowLogoutConfirm(false)}>
+                <div className="modal-content logout-confirm-modal" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    className="modal-close-btn"
+                    onClick={() => setShowLogoutConfirm(false)}
+                    aria-label="Close logout confirmation"
+                  >
+                    ×
+                  </button>
+                  <div className="logout-confirm-pill">Session control</div>
+                  <div className="logout-confirm-header">
+                    <div className="logout-confirm-icon">
+                      <LogOut size={26} color="#DC2626" />
+                    </div>
+                    <div className="logout-confirm-heading">
+                      <h3>Log out now?</h3>
+                      <p className="logout-confirm-subtitle">
+                        You&apos;re about to end your current session.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="logout-confirm-note">
+                    <div className="logout-confirm-note-label">What happens next</div>
+                    <p className="logout-confirm-body">
+                      You will be signed out immediately and redirected to the homepage. You can sign back in anytime.
+                    </p>
+                  </div>
+                  <div className="logout-confirm-actions">
+                    <button className="mock-btn logout-confirm-primary" onClick={performLogout}>
+                      Yes, logout
+                    </button>
+                    <button className="mock-btn cancel-btn" onClick={() => setShowLogoutConfirm(false)}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      ) : null}
+        ) : null}
+
+        <button
+          type="button"
+          className={`navbar-toggle mini-navbar-toggle ${mobileOpen ? "open" : ""}`}
+          onClick={() => {
+            setShowProfile(false);
+            setShowLogoutConfirm(false);
+            setMobileOpen((open) => !open);
+          }}
+          aria-label="Toggle navigation"
+          aria-expanded={mobileOpen}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </div>
     </div>
   );
 }
