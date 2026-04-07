@@ -67,6 +67,23 @@ function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    setMobileOpen(false);
+    setShowProfile(false);
+    setShowLogoutConfirm(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 900) {
+        setMobileOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const scrollToAbout = () => {
     if (location.pathname !== "/") {
       navigate("/");
@@ -152,17 +169,6 @@ function Navbar() {
         </div>
 
         <div className="nav-right navbar-right">
-          <button
-            className={`navbar-toggle ${mobileOpen ? "open" : ""}`}
-            onClick={toggleMobileMenu}
-            aria-label="Toggle navigation"
-            aria-expanded={mobileOpen}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-
           {!user ? (
             <button
               type="button"
@@ -179,7 +185,11 @@ function Navbar() {
               <button
                 type="button"
                 className="profile-card"
-                onClick={() => setShowProfile((prev) => !prev)}
+                onClick={() => {
+                  closeMobileMenu();
+                  setShowLogoutConfirm(false);
+                  setShowProfile((prev) => !prev);
+                }}
               >
                 <div className="profile-icon">
                   {user?.profile_image ? (
@@ -351,6 +361,20 @@ function Navbar() {
               )}
             </div>
           )}
+
+          <button
+            className={`navbar-toggle ${mobileOpen ? "open" : ""}`}
+            onClick={() => {
+              setShowProfile(false);
+              toggleMobileMenu();
+            }}
+            aria-label="Toggle navigation"
+            aria-expanded={mobileOpen}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
         </div>
       </div>
     </nav>
