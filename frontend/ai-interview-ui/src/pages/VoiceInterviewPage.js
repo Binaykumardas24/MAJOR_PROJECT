@@ -208,6 +208,8 @@ function controlTurnStatus(command) {
       return "Clarifying the current question...";
     case "off_topic":
       return "Refocusing on the current question...";
+    case "retry_answer":
+      return "Waiting for a better answer on the same question...";
     case "end_confirm":
       return "Confirming whether to end the interview...";
     case "end_cancelled":

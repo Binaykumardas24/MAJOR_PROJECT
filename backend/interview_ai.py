@@ -1292,6 +1292,284 @@ def _normalize_score_value(value: Any, fallback: Optional[int] = None) -> Option
     return max(0, min(100, score))
 
 
+def _answer_quality_signals(answer_text: str) -> Dict[str, Any]:
+    normalized = _normalize_text(answer_text)
+    lowered = normalized.lower()
+    words = re.findall(r"[a-zA-Z0-9']+", lowered)
+    unique_words = list(dict.fromkeys(words))
+    word_count = len(words)
+    unique_ratio = (len(unique_words) / word_count) if word_count else 0.0
+    alpha_words = [word for word in words if re.fullmatch(r"[a-z']+", word)]
+
+    filler_phrases = {
+        "nothing",
+        "no idea",
+        "i don't know",
+        "i dont know",
+        "dont know",
+        "don't know",
+        "not sure",
+        "nothing much",
+        "anything",
+        "something",
+        "whatever",
+        "random",
+        "blah",
+        "ok",
+        "okay",
+        "hmm",
+        "umm",
+        "um",
+        "uh",
+    }
+    filler_hits = sum(1 for phrase in filler_phrases if phrase in lowered)
+    explicit_no_idea_patterns = (
+        r"^i don't know$",
+        r"^i dont know$",
+        r"^i don't know about (it|this|that|the question|this question)$",
+        r"^i dont know about (it|this|that|the question|this question)$",
+        r"^dont know$",
+        r"^don't know$",
+        r"^i have no idea$",
+        r"^i don't have any idea$",
+        r"^i dont have any idea$",
+        r"^no idea$",
+        r"^i have no idea about (it|this|that|the question)$",
+        r"^i have no idea about this question$",
+        r"^i don't have any idea about (it|this|that|the question|this question)$",
+        r"^i dont have any idea about (it|this|that|the question|this question)$",
+        r"^i do not know$",
+        r"^i can't say$",
+        r"^i cant say$",
+        r"^cannot say$",
+        r"^can't say$",
+        r"^not sure$",
+        r"^i am not sure$",
+        r"^i'm not sure$",
+        r"^i am not sure about (it|this|that|the question|this question)$",
+        r"^i'm not sure about (it|this|that|the question|this question)$",
+    )
+    explicit_no_idea = any(re.fullmatch(pattern, lowered) for pattern in explicit_no_idea_patterns) or (
+        (
+            "no idea" in lowered
+            or "don't know" in lowered
+            or "dont know" in lowered
+            or "do not know" in lowered
+            or "can't say" in lowered
+            or "cant say" in lowered
+            or "not sure" in lowered
+        )
+        and any(marker in lowered for marker in ("question", "this", "that", "about"))
+    )
+    repeated_word = bool(word_count >= 2 and len(unique_words) == 1)
+    repeated_phrase = bool(word_count >= 4 and unique_ratio <= 0.35)
+    has_sentence_shape = any(token in lowered for token in (" because ", " when ", " where ", " so ", " but ", " and ", " i "))
+    has_example_shape = any(
+        token in lowered
+        for token in ("for example", "for instance", "in my project", "i worked", "i used", "i handled", "my role")
+    )
+    consonant_heavy_words = [
+        word for word in alpha_words
+        if len(word) >= 5 and sum(1 for char in word if char in "aeiou") <= 1
+    ]
+    hard_to_pronounce_words = [
+        word for word in alpha_words
+        if re.search(r"[bcdfghjklmnpqrstvwxyz]{5,}", word)
+    ]
+    gibberish_like = (
+        bool(alpha_words)
+        and len(alpha_words) <= 4
+        and len(consonant_heavy_words) >= max(1, len(alpha_words) - 1)
+        and len(hard_to_pronounce_words) >= max(1, len(alpha_words) - 1)
+        and not has_sentence_shape
+        and not has_example_shape
+    )
+    likely_nonsense = (
+        ((repeated_word or repeated_phrase) and not has_sentence_shape and not has_example_shape)
+        or gibberish_like
+    )
+
+    return {
+        "word_count": word_count,
+        "unique_ratio": unique_ratio,
+        "filler_hits": filler_hits,
+        "explicit_no_idea": explicit_no_idea,
+        "repeated_word": repeated_word,
+        "repeated_phrase": repeated_phrase,
+        "gibberish_like": gibberish_like,
+        "likely_nonsense": likely_nonsense,
+        "has_sentence_shape": has_sentence_shape,
+        "has_example_shape": has_example_shape,
+    }
+
+
+def _feedback_style(session: Dict[str, Any], question: Optional[Dict[str, Any]] = None) -> str:
+    context = session.get("context", {}) or {}
+    category = _normalize_text(context.get("category") or "").lower()
+    round_mode = _normalize_text(context.get("hr_round") or "").lower()
+    question_type = _normalize_text((question or {}).get("question_type") or "").lower()
+    interview_phase = _normalize_text((question or {}).get("interview_phase") or "").lower()
+
+    if category == "hr":
+        if question_type == "behavioral" or interview_phase in {"behavioral", "conflict", "situational", "communication"} or round_mode == "behavioral":
+            return "behavioral"
+        return "hr"
+    if question_type == "behavioral" or interview_phase == "behavioral_bridge":
+        return "behavioral"
+    return "technical"
+
+
+def _tone_feedback(
+    style: str,
+    evaluation: Dict[str, Any],
+    question: Optional[Dict[str, Any]] = None,
+    answer_text: str = "",
+) -> Dict[str, Any]:
+    score = max(0, min(100, int(evaluation.get("score", 0))))
+    relevance = _normalize_text(evaluation.get("relevance") or "")
+    clarity = _normalize_text(evaluation.get("clarity") or "")
+    correctness = _normalize_text(evaluation.get("correctness") or "")
+    strengths = _safe_list(evaluation.get("strengths"))[:2]
+    gaps = _safe_list(evaluation.get("gaps"))[:2]
+    topic = _normalize_text((question or {}).get("topic_tag") or (question or {}).get("question_type") or "the question")
+    quality = _answer_quality_signals(answer_text)
+
+    if quality["explicit_no_idea"]:
+        if style == "technical":
+            feedback = (
+                "It is okay not to know every answer in a technical interview. "
+                "Be honest, review this topic later, and treat it as something to learn rather than something to guess."
+            )
+            assistant_reply = "No problem. It is okay not to know every technical answer. Please review this topic later, and let us move to the next question."
+            suggested_answer = "If you are unsure in a real interview, be honest, say what you do know, and mention how you would learn or approach it."
+        elif style == "behavioral":
+            feedback = (
+                "That is an honest response, and honesty is better than inventing an example. "
+                "Try to reflect on this kind of situation later so you can answer with a real story next time."
+            )
+            assistant_reply = "No problem. Think through an example like this later, and let us continue."
+            suggested_answer = "For behavioral questions, prepare a few real examples in STAR format so you are not forced to guess."
+        else:
+            feedback = (
+                "That is an honest response. "
+                "You should review this area before your next interview so you can answer with more confidence and role relevance."
+            )
+            assistant_reply = "No problem. Please learn a bit more about this area, and let us continue."
+            suggested_answer = "If you do not know an answer in an HR round, be honest, stay calm, and connect to what you would do or learn next."
+
+        evaluation["score"] = min(score, 25)
+        evaluation["feedback"] = _normalize_text(feedback)
+        evaluation["assistant_reply"] = _normalize_text(assistant_reply)
+        evaluation["suggested_answer"] = _normalize_text(suggested_answer)
+        evaluation["relevance"] = "Partially Relevant"
+        evaluation["correctness"] = "Incorrect"
+        evaluation["clarity"] = "Clear"
+        evaluation["honest_uncertainty"] = True
+        return evaluation
+
+    if style == "technical":
+        if relevance == "Not Relevant":
+            feedback = (
+                f"This answer did not really engage with {topic}. "
+                "In a technical round, I would expect you to answer the prompt directly, then anchor it with one concrete example, decision, or trade-off."
+            )
+            assistant_reply = f"Let us reset and answer the actual technical question about {topic}."
+        elif score >= 80:
+            feedback = (
+                "This felt like a strong technical answer. "
+                "You stayed on the problem, explained the reasoning clearly, and sounded closer to how an engineer would defend a decision in a real interview."
+            )
+            assistant_reply = "Good. That was clear and technically grounded."
+        elif score >= 60:
+            feedback = (
+                "There is a solid technical base here. "
+                "To make it interview-strong, tighten the structure and make the implementation detail or trade-off more explicit."
+            )
+            assistant_reply = "Reasonable direction. I would just want a little more technical precision."
+        else:
+            feedback = (
+                "I can see the direction you were trying to take, but this would still feel weak in a real technical interview. "
+                "You need a clearer explanation, a more direct answer, and at least one concrete technical detail."
+            )
+            assistant_reply = "You are not far off, but I need a sharper technical answer."
+        suggested_answer = (
+            "Start with the direct technical answer, explain how or why it works, then add one example, edge case, or trade-off."
+        )
+    elif style == "behavioral":
+        if relevance == "Not Relevant":
+            feedback = (
+                "This did not really answer the behavioral prompt. "
+                "In a behavioral round, I would expect a specific situation, what you personally did, and the result or learning."
+            )
+            assistant_reply = "Let us come back to the actual situation and your role in it."
+        elif score >= 80:
+            feedback = (
+                "This sounded strong for a behavioral interview. "
+                "You gave enough context, made your action visible, and showed outcome or ownership in a way that feels believable."
+            )
+            assistant_reply = "Good. That felt like a credible real example."
+        elif score >= 60:
+            feedback = (
+                "The answer is moving in the right direction for a behavioral round. "
+                "It would be stronger with clearer STAR structure so your action and impact stand out more."
+            )
+            assistant_reply = "Good base. I would just want the story and your action to be a bit clearer."
+        else:
+            feedback = (
+                "This would still feel underdeveloped in a behavioral interview. "
+                "Give me the situation, what you specifically did, and what changed because of your action."
+            )
+            assistant_reply = "Please make it more specific and more ownership-focused."
+        suggested_answer = (
+            "Use a STAR-style flow: situation, task, action, and result, with clear ownership and one concrete outcome."
+        )
+    else:
+        if relevance == "Not Relevant":
+            feedback = (
+                "This answer did not really connect to the question I asked. "
+                "In an HR round, I would expect a direct response that shows motivation, professionalism, self-awareness, or role fit."
+            )
+            assistant_reply = "Let us come back to the actual question and answer it directly."
+        elif score >= 80:
+            feedback = (
+                "This sounded interview-ready for an HR round. "
+                "You were clear, relevant, and human, and the answer gave a believable sense of your motivation and professional judgment."
+            )
+            assistant_reply = "Good. That felt clear and professional."
+        elif score >= 60:
+            feedback = (
+                "This is a decent HR answer with the right intent. "
+                "To make it stronger, be a little more specific and connect the answer more clearly to the role or workplace situation."
+            )
+            assistant_reply = "Fair answer. I would just want a clearer connection to the role."
+        else:
+            feedback = (
+                "This would still feel weak in an HR conversation. "
+                "I need a clearer point, a little more substance, and a stronger connection to how you work or why you fit the role."
+            )
+            assistant_reply = "Please make that more specific and role-relevant."
+        suggested_answer = (
+            "Answer directly, keep it professional, and connect your point to motivation, work style, role fit, or a real example."
+        )
+
+    if clarity == "Needs Improvement" and score < 80:
+        feedback = f"{feedback} The structure also needs to be cleaner so the listener can follow your point quickly."
+    if correctness == "Incorrect" and style == "technical":
+        feedback = f"{feedback} I would also revisit the underlying concept because the explanation was not technically reliable yet."
+
+    if strengths and score >= 60:
+        feedback = f"{feedback} What worked best was {strengths[0].rstrip('.').lower()}."
+    elif gaps and score < 60:
+        feedback = f"{feedback} The main issue was {gaps[0].rstrip('.').lower()}."
+
+    evaluation["feedback"] = _normalize_text(feedback)
+    evaluation["assistant_reply"] = _normalize_text(assistant_reply)
+    if not _normalize_text(evaluation.get("suggested_answer") or "") or score < 80:
+        evaluation["suggested_answer"] = _normalize_text(suggested_answer)
+    evaluation["honest_uncertainty"] = False
+    return evaluation
+
+
 def _normalize_hr_evaluation_payload(evaluation: Dict[str, Any], fallback_defaults: Dict[str, Any]) -> Dict[str, Any]:
     normalized = _normalize_evaluation_payload(evaluation, fallback_defaults)
     for key in [
@@ -1312,15 +1590,50 @@ def _normalize_hr_evaluation_payload(evaluation: Dict[str, Any], fallback_defaul
     return normalized
 
 
+def _reconcile_evaluation_with_heuristic(
+    evaluation: Dict[str, Any],
+    heuristic_defaults: Dict[str, Any],
+) -> Dict[str, Any]:
+    reconciled = dict(evaluation)
+    current_score = max(0, min(100, int(reconciled.get("score", 0))))
+    heuristic_score = max(0, min(100, int(heuristic_defaults.get("score", 0))))
+    current_matched = _safe_list(reconciled.get("matched_points"))
+    heuristic_matched = _safe_list(heuristic_defaults.get("matched_points"))
+    current_relevance = _normalize_text(reconciled.get("relevance") or "")
+    heuristic_relevance = _normalize_text(heuristic_defaults.get("relevance") or "")
+    current_correctness = _normalize_text(reconciled.get("correctness") or "")
+    heuristic_correctness = _normalize_text(heuristic_defaults.get("correctness") or "")
+
+    # Do not let one overly strict model judgment mark a meaningfully related answer as irrelevant.
+    if current_relevance == "Not Relevant" and (heuristic_relevance != "Not Relevant" or heuristic_matched or heuristic_score >= 50):
+        reconciled["relevance"] = heuristic_relevance or "Partially Relevant"
+        reconciled["logical_validity"] = _normalize_text(
+            heuristic_defaults.get("logical_validity") or reconciled.get("logical_validity") or "Partially Logical"
+        )
+
+    if current_correctness == "Incorrect" and (heuristic_correctness != "Incorrect" or heuristic_matched or heuristic_score >= 55):
+        reconciled["correctness"] = heuristic_correctness or "Partially Correct"
+
+    if not current_matched and heuristic_matched:
+        reconciled["matched_points"] = heuristic_matched[:4]
+    if not _safe_list(reconciled.get("strengths")) and _safe_list(heuristic_defaults.get("strengths")):
+        reconciled["strengths"] = _safe_list(heuristic_defaults.get("strengths"))[:3]
+    if current_score < 45 and heuristic_score >= 55:
+        reconciled["score"] = min(100, max(current_score, int(round((current_score + heuristic_score) / 2))))
+
+    return reconciled
+
+
 def _heuristic_evaluation(question: Dict[str, Any], answer: str) -> Dict[str, Any]:
     answer_text = _normalize_text(answer)
     expected_points = _safe_list(question.get("expected_points"))
     keywords = _keyword_set(expected_points)
     answer_lower = answer_text.lower()
+    quality = _answer_quality_signals(answer_text)
 
     matched_keywords = [kw for kw in keywords if kw in answer_lower]
     coverage = len(matched_keywords) / max(len(keywords), 1)
-    length_bonus = min(len(answer_text.split()) / 80, 1.0)
+    length_bonus = min(quality["word_count"] / 80, 1.0)
     score = int(round(min(100, 35 + coverage * 45 + length_bonus * 20)))
 
     matched_points = []
@@ -1346,14 +1659,14 @@ def _heuristic_evaluation(question: Dict[str, Any], answer: str) -> Dict[str, An
     if missed_points:
         gaps.append("Some expected points were not clearly addressed.")
     if len(answer_text.split()) < 18:
-        gaps.append("Your answer was quite short and could use more specifics.")
+        gaps.append("Your answer did not give enough detail to assess your thinking clearly.")
 
     suggested_answer = (
         "A stronger answer would briefly give context, explain your actions clearly, "
         "and end with the result or lesson learned."
     )
 
-    word_count = len(answer_text.split())
+    word_count = quality["word_count"]
     project_markers = ("example", "project", "production", "real", "client", "api", "service", "system", "deployed")
     structure_markers = ("first", "second", "then", "finally", "approach", "step", "start by", "walk through")
     complexity_markers = ("time complexity", "space complexity", "big o", "o(", "complexity")
@@ -1365,6 +1678,14 @@ def _heuristic_evaluation(question: Dict[str, Any], answer: str) -> Dict[str, An
     has_tradeoff = any(marker in answer_lower for marker in tradeoff_markers)
     uncertainty_hits = sum(1 for marker in uncertainty_markers if marker in answer_lower)
     off_topic = bool(answer_text) and coverage < 0.12 and not matched_points
+    vague_but_related = bool(answer_text) and not off_topic and coverage < 0.28 and word_count < 20
+
+    if quality["likely_nonsense"]:
+        score = min(score, 12)
+    elif quality["filler_hits"] and word_count < 10:
+        score = min(score, 22)
+    elif vague_but_related:
+        score = min(score, 45)
 
     communication_score = max(
         30,
@@ -1379,11 +1700,11 @@ def _heuristic_evaluation(question: Dict[str, Any], answer: str) -> Dict[str, An
         min(100, score + (10 if has_structure else -4) + (6 if has_complexity or has_tradeoff else 0)),
     )
 
-    relevance = "Not Relevant" if off_topic else ("Partially Relevant" if coverage < 0.45 else "Relevant")
-    correctness = "Incorrect" if coverage < 0.18 else ("Partially Correct" if coverage < 0.65 else "Correct")
-    clarity = "Needs Improvement" if word_count < 16 else "Clear"
-    technical_depth = "Weak" if word_count < 18 or coverage < 0.25 else ("Moderate" if coverage < 0.7 else "Good")
-    logical_validity = "Illogical" if off_topic else ("Partially Logical" if coverage < 0.55 else "Logical")
+    relevance = "Not Relevant" if off_topic or quality["likely_nonsense"] else ("Partially Relevant" if coverage < 0.45 else "Relevant")
+    correctness = "Incorrect" if quality["likely_nonsense"] or coverage < 0.18 else ("Partially Correct" if coverage < 0.65 else "Correct")
+    clarity = "Needs Improvement" if word_count < 16 or quality["repeated_phrase"] else "Clear"
+    technical_depth = "Weak" if word_count < 18 or coverage < 0.25 or quality["likely_nonsense"] else ("Moderate" if coverage < 0.7 else "Good")
+    logical_validity = "Illogical" if off_topic or quality["likely_nonsense"] else ("Partially Logical" if coverage < 0.55 else "Logical")
     real_world_applicability = (
         "Applicable" if has_real_world_marker and coverage >= 0.45
         else "Partially Applicable" if has_real_world_marker or coverage >= 0.28
@@ -1392,6 +1713,8 @@ def _heuristic_evaluation(question: Dict[str, Any], answer: str) -> Dict[str, An
 
     topic_label = _normalize_text(question.get("topic_tag") or question.get("question_type") or "the topic")
     suggestions = []
+    if quality["likely_nonsense"] or (quality["filler_hits"] and word_count < 10):
+        suggestions.append("Answer with one clear idea instead of filler words or repeated phrases.")
     if off_topic:
         suggestions.append(f"Focus directly on {topic_label} before adding extra context.")
     if word_count < 16:
@@ -1402,12 +1725,20 @@ def _heuristic_evaluation(question: Dict[str, Any], answer: str) -> Dict[str, An
         suggestions.append("Tie your answer to a real project, trade-off, or production scenario.")
     suggestions = suggestions[:3]
 
-    if off_topic:
+    if quality["explicit_no_idea"]:
+        assistant_reply = "That is okay. If you do not know, say it honestly and review this topic later. Let us continue."
+    elif quality["gibberish_like"]:
+        assistant_reply = "I could not understand that response as a real answer. Please answer the question clearly."
+    elif quality["likely_nonsense"]:
+        assistant_reply = "I did not get a meaningful answer there. Please answer the question directly."
+    elif quality["filler_hits"] and word_count < 10:
+        assistant_reply = "I need a real answer here. Please explain your point a little more clearly."
+    elif off_topic:
         assistant_reply = f"That is slightly off-topic. Let us focus on {topic_label}."
     elif word_count < 10:
-        assistant_reply = "Can you expand on that?"
+        assistant_reply = "I heard a response, but not enough to judge your actual answer yet."
     elif word_count < 18 or coverage < 0.28:
-        assistant_reply = "Can you be more specific?"
+        assistant_reply = "You are in the right area, but I need a clearer and more specific answer."
     elif score >= 80:
         assistant_reply = "Interesting. Let us explore that a little further."
     else:
@@ -1415,10 +1746,35 @@ def _heuristic_evaluation(question: Dict[str, Any], answer: str) -> Dict[str, An
 
     if not answer_text:
         feedback = "I could not capture a clear answer. Please answer directly, stay on the topic, and add one real example."
+    elif quality["explicit_no_idea"]:
+        feedback = (
+            "It is okay to say you do not know. "
+            "Use this as a topic to learn after the interview, and try to answer honestly without guessing."
+        )
+    elif quality["gibberish_like"]:
+        feedback = (
+            "Your response did not sound like a recognizable answer to the question. "
+            "Please answer in clear words or sentences so I can evaluate your actual thinking."
+        )
+    elif quality["likely_nonsense"]:
+        feedback = (
+            "Your response did not contain a clear idea I could evaluate. "
+            "Answer the question directly in one or two complete sentences, then add a brief example."
+        )
+    elif quality["filler_hits"] and word_count < 10:
+        feedback = (
+            "Your answer sounded more like filler than a complete response. "
+            "Give one clear point, explain it briefly, and connect it to the question."
+        )
     elif off_topic:
         feedback = (
             f"Your response drifted away from {topic_label}. Start by answering the exact question, "
             "then support it with one relevant technical example."
+        )
+    elif vague_but_related:
+        feedback = (
+            "Your answer is in the right direction, but it is still too general. "
+            "A stronger response would explain your main point more clearly and include one concrete example."
         )
     elif score >= 75:
         feedback = (
@@ -1457,7 +1813,8 @@ def _hr_heuristic_evaluation(question: Dict[str, Any], answer: str) -> Dict[str,
     base = _heuristic_evaluation(question, answer)
     answer_text = _normalize_text(answer)
     answer_lower = answer_text.lower()
-    word_count = len(answer_text.split())
+    quality = _answer_quality_signals(answer_text)
+    word_count = quality["word_count"]
 
     teamwork_markers = ("team", "collabor", "together", "support", "stakeholder")
     leadership_markers = ("lead", "owned", "initiative", "mentor", "guided", "responsible")
@@ -1487,7 +1844,19 @@ def _hr_heuristic_evaluation(question: Dict[str, Any], answer: str) -> Dict[str,
         ),
     )
 
-    if word_count < 14:
+    if quality["likely_nonsense"]:
+        base["feedback"] = (
+            "That did not sound like a meaningful interview answer yet. "
+            "Please answer like you would to a real interviewer: explain the situation, what you did, and the result."
+        )
+        base["assistant_reply"] = "Please answer that again in a more direct and meaningful way."
+    elif quality["filler_hits"] and word_count < 10:
+        base["feedback"] = (
+            "I need a clearer HR-style answer here. "
+            "Share a real situation or motivation, describe your action, and explain the result or learning."
+        )
+        base["assistant_reply"] = "Please try that again with a real example or a clearer explanation."
+    elif word_count < 14:
         base["feedback"] = (
             "Your answer was understandable, but it needs more detail and a clearer example. "
             "Try using a situation, the action you took, and the final result."
@@ -2385,11 +2754,11 @@ def _build_off_topic_control_response(
         opener = "That is not related to the question I asked."
 
     assistant_reply = (
-        f"{opener} In a real interview, going off-topic weakens your answer and shows poor focus. "
+        f"Irrelevant answer. {opener} "
         f"Please answer the current question about {topic_label} directly."
     )
     feedback = (
-        f"Your response was not relevant to the question. In a real interview, this would be treated as poor focus and a weak answer. "
+        f"Irrelevant answer. Your response was not relevant to the question. In a real interview, this would be treated as poor focus and a weak answer. "
         f"Stay on {topic_label}, answer the prompt directly, and avoid unrelated personal or casual conversation."
     )
     suggestions = [
@@ -2409,6 +2778,222 @@ def _build_off_topic_control_response(
         next_question_type=_normalize_text(question.get("question_type") or "practical"),
         answer_text=answer_text,
     )
+
+
+def _normalize_known_language(value: str) -> str:
+    normalized = _normalize_text(value).lower()
+    return KNOWN_LANGUAGES.get(normalized, _normalize_text(value))
+
+
+def _detect_answer_language_mismatch(session: Dict[str, Any], answer_text: str) -> str:
+    state = session.get("meta", {}).get("adaptive_state") or {}
+    selected_mode = _normalize_text(
+        state.get("selected_mode") or session.get("context", {}).get("selected_mode") or ""
+    ).lower()
+    target_language = _normalize_known_language(
+        state.get("preferred_language")
+        or session.get("context", {}).get("primary_language")
+        or ""
+    )
+    if selected_mode != "language" or not target_language:
+        return ""
+
+    mentioned_languages = _extract_known_terms(answer_text, KNOWN_LANGUAGES)
+    if not mentioned_languages:
+        return ""
+
+    normalized_target = _normalize_text(target_language).lower()
+    normalized_mentions = {
+        _normalize_text(language).lower()
+        for language in mentioned_languages
+        if _normalize_text(language)
+    }
+    if normalized_target in normalized_mentions:
+        return ""
+    if len(normalized_mentions) == 1:
+        return next(iter(normalized_mentions))
+    return ""
+
+
+def _build_retry_answer_control_response(
+    session: Dict[str, Any],
+    question_index: int,
+    question: Dict[str, Any],
+    answer_text: str,
+    evaluation: Dict[str, Any],
+) -> Dict[str, Any]:
+    topic_label = _normalize_text(question.get("topic_tag") or question.get("question_type") or "this topic")
+    expected_language = _normalize_known_language(
+        session.get("meta", {}).get("adaptive_state", {}).get("preferred_language")
+        or session.get("context", {}).get("primary_language")
+        or ""
+    )
+    detected_language = _detect_answer_language_mismatch(session, answer_text)
+    quality = _answer_quality_signals(answer_text)
+    word_count = quality["word_count"]
+    relevance = _normalize_text(evaluation.get("relevance") or "")
+    style = _feedback_style(session, question)
+
+    if style == "behavioral":
+        topic_noun = "example"
+    elif style == "hr":
+        topic_noun = "answer"
+    else:
+        topic_noun = "technical answer"
+
+    if detected_language and expected_language:
+        assistant_reply = (
+            f"You switched away from {expected_language}. Please answer this question in {expected_language} so I can assess the right topic."
+        )
+        feedback = (
+            f"Your response focused on {detected_language.title()} instead of {expected_language}. "
+            f"This interview is currently testing {expected_language}, so the same question will stay active."
+        )
+        suggestions = [
+            f"Answer using {expected_language} concepts, syntax, or examples.",
+            "If you need the question repeated, ask me to repeat it instead of switching technologies.",
+            "Give one direct example that clearly matches the selected language.",
+        ]
+    elif quality["gibberish_like"]:
+        assistant_reply = (
+            "Sorry, I do not understand what you said. Please answer the same question clearly."
+            if style == "technical"
+            else "Sorry, I do not understand what you said. Please answer the same question clearly in normal words."
+        )
+        feedback = (
+            f"Your response was not understandable enough to evaluate {topic_label}. "
+            f"The interview will stay on the same question until you give a clear {topic_noun} in normal words."
+        )
+        suggestions = [
+            "Answer in clear words or sentences.",
+            "State your actual point directly.",
+            "Add one simple explanation or example.",
+        ]
+    elif quality["likely_nonsense"]:
+        assistant_reply = (
+            "I did not get a meaningful answer there. Please answer the same question clearly."
+            if style == "technical"
+            else "I did not get a meaningful answer there. Please answer the same question clearly, like you would to a real interviewer."
+        )
+        feedback = (
+            f"Your response did not contain enough meaningful information to evaluate {topic_label}. "
+            f"The interview will stay on the same question until you give a direct {topic_noun} with at least one clear idea."
+        )
+        suggestions = [
+            "Start with one direct point that answers the question.",
+            "Add one brief explanation or example from your work, project, or learning.",
+            "Avoid repeated words, filler, or unrelated phrases.",
+        ]
+    elif quality["filler_hits"] and word_count < 10:
+        assistant_reply = (
+            "That still sounds too vague. Please give me one clear answer with a short explanation."
+            if style != "behavioral"
+            else "That still sounds too vague. Please give me one clear example with a short explanation."
+        )
+        feedback = (
+            f"Your response sounded more like filler than a complete answer about {topic_label}. "
+            f"A human interviewer would expect one clear point, a short explanation, and a relevant {'example' if style == 'behavioral' else 'detail'}."
+        )
+        suggestions = [
+            "Answer in one or two complete sentences first.",
+            "Explain why that point matters.",
+            "Add one simple example if you can.",
+        ]
+    elif word_count < 8:
+        assistant_reply = (
+            "I heard a response, but there is not enough there yet for me to assess your actual answer."
+            if style != "behavioral"
+            else "I heard a response, but there is not enough there yet for me to assess the example properly."
+        )
+        feedback = (
+            f"Your response did not give me enough substance to assess {topic_label} properly. "
+            "Give a direct answer, then add one clear explanation, example, or outcome."
+        )
+        suggestions = [
+            "Start with a direct answer to the question.",
+            "Add one specific example, action, or implementation detail.",
+            "Finish with the result, trade-off, or why it mattered.",
+        ]
+    elif relevance == "Not Relevant":
+        assistant_reply = "Irrelevant answer. Please try to give an appropriate answer to the question."
+        feedback = (
+            f"Your response did not stay relevant to {topic_label}, so the interview will keep the current question active. "
+            "Answer the prompt directly before adding extra context."
+        )
+        suggestions = [
+            f"Focus directly on {topic_label}.",
+            "Answer the exact question before adding background details.",
+            "Use one relevant technical or practical example.",
+        ]
+    else:
+        assistant_reply = (
+            "That answer still needs more specificity before we move on. Please try the same question again with a clearer explanation."
+            if style == "technical"
+            else "That answer still needs more specificity before we move on. Please try the same question again with a clearer and more complete response."
+        )
+        feedback = (
+            f"Your response was not strong enough to move forward yet. "
+            f"It needs clearer relevance, structure, or {'ownership and impact' if style == 'behavioral' else 'role connection' if style == 'hr' else 'technical detail'} on {topic_label}."
+        )
+        suggestions = [
+            "Answer in a clear order: main point, brief explanation, then example.",
+            "Use the exact topic from the question instead of a related topic.",
+            "Add one practical detail that shows real understanding.",
+        ]
+
+    return _build_control_turn_response(
+        session,
+        question_index,
+        question,
+        "retry_answer",
+        assistant_reply=assistant_reply,
+        feedback=feedback,
+        suggestions=suggestions,
+        next_question=_normalize_text(question.get("question") or ""),
+        next_question_type=_normalize_text(question.get("question_type") or "practical"),
+        answer_text=answer_text,
+    )
+
+
+def _should_retry_answer(
+    session: Dict[str, Any],
+    question: Dict[str, Any],
+    answer_text: str,
+    evaluation: Dict[str, Any],
+) -> bool:
+    normalized_answer = _normalize_text(answer_text)
+    if not normalized_answer:
+        return False
+
+    if _detect_answer_language_mismatch(session, normalized_answer):
+        return True
+
+    quality = _answer_quality_signals(normalized_answer)
+    word_count = quality["word_count"]
+    relevance = _normalize_text(evaluation.get("relevance") or "")
+    correctness = _normalize_text(evaluation.get("correctness") or "")
+    clarity = _normalize_text(evaluation.get("clarity") or "")
+    logical_validity = _normalize_text(evaluation.get("logical_validity") or "")
+    matched_points = _safe_list(evaluation.get("matched_points"))
+    score = max(0, min(100, int(evaluation.get("score", 0))))
+
+    if quality["explicit_no_idea"]:
+        return False
+    if quality["likely_nonsense"]:
+        return True
+    if quality["filler_hits"] and word_count < 10:
+        return True
+    if relevance == "Not Relevant" and not matched_points and score < 45:
+        return True
+    if logical_validity == "Illogical" and not matched_points and score < 45:
+        return True
+    if word_count < 6:
+        return True
+    if score < 35 and not matched_points:
+        return True
+    if correctness == "Incorrect" and clarity == "Needs Improvement" and word_count < 16:
+        return True
+    return False
 
 
 def _adaptive_closing_message(
@@ -4071,6 +4656,18 @@ Rules:
     if provider_used != "fallback":
         heuristic_defaults = _hr_heuristic_evaluation(question, answer_text)
         evaluation = _normalize_hr_evaluation_payload(evaluation, heuristic_defaults)
+        evaluation = _reconcile_evaluation_with_heuristic(evaluation, heuristic_defaults)
+    evaluation = _tone_feedback(_feedback_style(session, question), evaluation, question, answer_text)
+
+    if _should_retry_answer(session, question, answer_text, evaluation):
+        await _persist_session(session)
+        return _build_retry_answer_control_response(
+            session,
+            question_index,
+            question,
+            answer_text,
+            evaluation,
+        )
 
     _register_scored_turn(state, question)
     if int(state.get("scored_questions_answered", 0)) >= int(state.get("scored_question_target", 0)):
@@ -4090,9 +4687,10 @@ Rules:
     else:
         generated_question, provider = await _generate_hr_adaptive_question(session, question, answer_text, evaluation)
     session["providers"]["generation_provider"] = provider
-    evaluation["assistant_reply"] = _normalize_text(
-        generated_question.get("assistant_reply") or evaluation.get("assistant_reply") or "Thanks. Let us continue."
-    )
+    if not evaluation.get("honest_uncertainty"):
+        evaluation["assistant_reply"] = _normalize_text(
+            generated_question.get("assistant_reply") or evaluation.get("assistant_reply") or "Thanks. Let us continue."
+        )
     next_question = _append_session_question(
         session,
         {
@@ -4199,9 +4797,10 @@ async def _evaluate_adaptive_interview_answer(
                 discovery_transition,
             )
             session["providers"]["generation_provider"] = provider
-            evaluation["assistant_reply"] = _normalize_text(
-                generated_question.get("assistant_reply") or acknowledgement
-            )
+            if not evaluation.get("honest_uncertainty"):
+                evaluation["assistant_reply"] = _normalize_text(
+                    generated_question.get("assistant_reply") or acknowledgement
+                )
             next_question = _append_session_question(
                 session,
                 {
@@ -4298,6 +4897,18 @@ Rules:
     if provider_used != "fallback":
         heuristic_defaults = _heuristic_evaluation(question, answer_text)
         evaluation = _normalize_evaluation_payload(evaluation, heuristic_defaults)
+        evaluation = _reconcile_evaluation_with_heuristic(evaluation, heuristic_defaults)
+    evaluation = _tone_feedback(_feedback_style(session, question), evaluation, question, answer_text)
+
+    if _should_retry_answer(session, question, answer_text, evaluation):
+        await _persist_session(session)
+        return _build_retry_answer_control_response(
+            session,
+            question_index,
+            question,
+            answer_text,
+            evaluation,
+        )
 
     if (
         _normalize_text(state.get("selected_mode") or session.get("context", {}).get("selected_mode") or "").lower() == "language"
@@ -4329,9 +4940,10 @@ Rules:
     else:
         generated_question, provider = await _generate_adaptive_question(session, question, answer_text, evaluation)
     session["providers"]["generation_provider"] = provider
-    evaluation["assistant_reply"] = _normalize_text(
-        generated_question.get("assistant_reply") or evaluation.get("assistant_reply") or "Thanks. Let’s continue."
-    )
+    if not evaluation.get("honest_uncertainty"):
+        evaluation["assistant_reply"] = _normalize_text(
+            generated_question.get("assistant_reply") or evaluation.get("assistant_reply") or "Thanks. Let’s continue."
+        )
     next_question = _append_session_question(
         session,
         {
@@ -4705,6 +5317,18 @@ Rules:
     if provider_used != "fallback":
         heuristic_defaults = _heuristic_evaluation(question, answer_text)
         evaluation = _normalize_evaluation_payload(evaluation, heuristic_defaults)
+        evaluation = _reconcile_evaluation_with_heuristic(evaluation, heuristic_defaults)
+    evaluation = _tone_feedback(_feedback_style(session, question), evaluation, question, answer_text)
+
+    if _should_retry_answer(session, question, answer_text, evaluation):
+        await _persist_session(session)
+        return _build_retry_answer_control_response(
+            session,
+            question_index,
+            question,
+            answer_text,
+            evaluation,
+        )
 
     result = {
         "question_id": question["id"],
