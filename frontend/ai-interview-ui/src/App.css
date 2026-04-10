@@ -5332,7 +5332,165 @@ button {
   min-height: 150px;
 }
 
-.feature-visual-orb {
+.feature-visual-image {
+
+  display: block;
+
+  width: min(100%, 260px);
+
+  margin: 0 auto;
+
+  border-radius: 18px;
+
+  object-fit: cover;
+
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.24);
+
+}
+
+
+
+.feature-visual-button {
+
+  display: block;
+
+  width: min(100%, 260px);
+
+  margin: 0 auto;
+
+  padding: 0;
+
+  border: none;
+
+  background: transparent;
+
+  cursor: pointer;
+
+}
+
+.feature-section-overlay-host {
+
+  position: relative;
+
+}
+
+.image-lightbox {
+
+  position: absolute;
+
+  inset: 0;
+
+  z-index: 30;
+
+  padding: 24px;
+
+  opacity: 1;
+
+  transition: background 0.26s ease;
+
+  background: rgba(15, 23, 42, 0.72);
+
+  border-radius: 32px;
+
+}
+
+
+
+.image-lightbox-content {
+
+  position: absolute;
+
+  top: var(--origin-top);
+
+  left: var(--origin-left);
+
+  width: var(--origin-width);
+
+  max-width: min(1120px, 94vw);
+
+  max-height: calc(100vh - 48px);
+
+  transform: none;
+
+  transform-origin: top left;
+
+  transition:
+    top 0.26s ease,
+    left 0.26s ease,
+    width 0.26s ease,
+    transform 0.26s ease;
+
+}
+
+
+
+.image-lightbox-content.is-open {
+
+  top: var(--target-top);
+
+  left: var(--target-left);
+
+  width: var(--target-width);
+
+  transform: none;
+
+}
+
+
+
+.image-lightbox-image {
+
+  display: block;
+
+  width: 100%;
+
+  max-height: min(calc(100vh - 48px), 70vh);
+
+  border-radius: 18px;
+
+  transition: border-radius 0.26s ease, box-shadow 0.26s ease;
+
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.35);
+
+}
+
+
+
+.image-lightbox-close {
+
+  position: absolute;
+
+  top: -14px;
+
+  right: -14px;
+
+  width: 38px;
+
+  height: 38px;
+
+  border: none;
+
+  border-radius: 999px;
+
+  background: #ffffff;
+
+  color: #0f172a;
+
+  font-size: 18px;
+
+  font-weight: 800;
+
+  cursor: pointer;
+
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
+
+}
+
+
+
+.feature-visual-orb {
   position: absolute;
   border-radius: 999px;
   filter: blur(4px);

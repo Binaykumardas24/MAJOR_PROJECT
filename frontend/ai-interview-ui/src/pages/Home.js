@@ -1,6 +1,12 @@
 ﻿import React from "react";
 import { useNavigate } from "react-router-dom";
 import { BrainCircuit, BriefcaseBusiness, Code2, FileSearch, Mic2, Sigma } from "lucide-react";
+import analyticsImage from "../assets/Analytics.png";
+import feedbackImage from "../assets/feedback.png";
+import mockInterviewImage from "../assets/mock_interview.png";
+import multiTypeInterviewImage from "../assets/multi_type_interview.png";
+import resumeBasedInterviewImage from "../assets/resume_based_interview.png";
+import voiceImage from "../assets/voice.png";
 import "../App.css";
 
 const howItWorksSteps = [
@@ -78,6 +84,7 @@ const features = [
     description: "Practice role-focused interviews with an AI flow that feels structured and realistic.",
     accent: "cyan",
     tags: ["Scenario based", "Adaptive prompts"],
+    image: mockInterviewImage,
   },
   {
     badge: "Analytics",
@@ -85,6 +92,7 @@ const features = [
     description: "Review scores, progress signals, and trends to understand where your interview skills are improving.",
     accent: "blue",
     tags: ["Reports", "Progress tracking"],
+    image: analyticsImage,
   },
   {
     badge: "Feedback",
@@ -92,6 +100,7 @@ const features = [
     description: "Receive guidance on clarity, confidence, structure, and delivery after each round.",
     accent: "amber",
     tags: ["Actionable", "Personalized"],
+    image: feedbackImage,
   },
   {
     badge: "Resume",
@@ -99,6 +108,7 @@ const features = [
     description: "Upload your resume and prepare with questions tailored to your background and chosen role.",
     accent: "violet",
     tags: ["Resume aware", "Role aligned"],
+    image: resumeBasedInterviewImage,
   },
   {
     badge: "Voice",
@@ -106,6 +116,7 @@ const features = [
     description: "Simulate spoken interview rounds with an experience designed to feel closer to real conversation.",
     accent: "emerald",
     tags: ["Speaking practice", "Natural flow"],
+    image: voiceImage,
   },
   {
     badge: "Coverage",
@@ -113,13 +124,17 @@ const features = [
     description: "Switch between HR, technical, aptitude, mock, and resume interview modes in one platform.",
     accent: "rose",
     tags: ["All-in-one", "Flexible prep"],
+    image: multiTypeInterviewImage,
   },
 ];
 
 function Home() {
   const navigate = useNavigate();
+  const featureSectionRef = React.useRef(null);
   const [typedName, setTypedName] = React.useState("");
   const [activeStep, setActiveStep] = React.useState(0);
+  const [zoomedImage, setZoomedImage] = React.useState(null);
+  const [isZoomAnimating, setIsZoomAnimating] = React.useState(false);
   const [storedUser, setStoredUser] = React.useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user"));
@@ -220,12 +235,29 @@ function Home() {
     return () => window.clearInterval(intervalId);
   }, []);
 
+  React.useEffect(() => {
+    if (!zoomedImage) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      setIsZoomAnimating(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [zoomedImage]);
+
   const goToPreviousStep = () => {
     setActiveStep((current) => (current - 1 + howItWorksSteps.length) % howItWorksSteps.length);
   };
 
   const goToNextStep = () => {
     setActiveStep((current) => (current + 1) % howItWorksSteps.length);
+  };
+
+  const closeZoomedImage = () => {
+    setIsZoomAnimating(false);
+    window.setTimeout(() => {
+      setZoomedImage(null);
+    }, 260);
   };
 
   return (
@@ -374,7 +406,7 @@ function Home() {
       </div>
 
       {/* FEATURES */}
-      <div className="mock-section reveal" style={{ padding: "50px 0" }}>
+      <div className="mock-section reveal feature-section-overlay-host" style={{ padding: "50px 0" }} ref={featureSectionRef}>
         <div className="section-heading section-heading-centered">
           <span className="section-heading-badge">Core Experience</span>
           <h2 className="section-heading-title section-heading-title-glow">Features</h2>
@@ -391,24 +423,53 @@ function Home() {
               </div>
 
               <div className="feature-card-visual" aria-hidden="true">
-                <span className="feature-visual-orb feature-visual-orb-one" />
-                <span className="feature-visual-orb feature-visual-orb-two" />
-                <div className="feature-visual-screen">
-                  <div className="feature-visual-screen-top">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                  <div className="feature-visual-screen-body">
-                    <div className="feature-visual-line feature-visual-line-lg" />
-                    <div className="feature-visual-line feature-visual-line-md" />
-                    <div className="feature-visual-metrics">
-                      <span />
-                      <span />
-                      <span />
+                {item.image ? (
+                  <button
+                    type="button"
+                    className="feature-visual-button"
+                    onClick={(event) => {
+                      const sectionRect = featureSectionRef.current?.getBoundingClientRect();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      if (!sectionRect) return;
+                      const targetWidth = Math.min(sectionRect.width - 48, 1120);
+                      const targetHeight = Math.min(sectionRect.height - 48, window.innerHeight * 0.72);
+                      setZoomedImage({
+                        src: item.image,
+                        originTop: rect.top - sectionRect.top,
+                        originLeft: rect.left - sectionRect.left,
+                        originWidth: rect.width,
+                        originHeight: rect.height,
+                        targetTop: Math.max(24, (sectionRect.height - targetHeight) / 2),
+                        targetLeft: Math.max(24, (sectionRect.width - targetWidth) / 2),
+                        targetWidth,
+                      });
+                    }}
+                    aria-label={`Open full image for ${item.title}`}
+                  >
+                    <img className="feature-visual-image" src={item.image} alt={item.title} />
+                  </button>
+                ) : (
+                  <>
+                    <span className="feature-visual-orb feature-visual-orb-one" />
+                    <span className="feature-visual-orb feature-visual-orb-two" />
+                    <div className="feature-visual-screen">
+                      <div className="feature-visual-screen-top">
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+                      <div className="feature-visual-screen-body">
+                        <div className="feature-visual-line feature-visual-line-lg" />
+                        <div className="feature-visual-line feature-visual-line-md" />
+                        <div className="feature-visual-metrics">
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
 
               <div className="feature-card-copy">
@@ -423,6 +484,40 @@ function Home() {
             </article>
           ))}
         </div>
+
+        {zoomedImage && (
+          <div
+            className="image-lightbox"
+            role="dialog"
+            aria-modal="true"
+            onClick={closeZoomedImage}
+          >
+            <div
+              className={`image-lightbox-content ${isZoomAnimating ? "is-open" : ""}`}
+              style={{
+                "--origin-top": `${zoomedImage.originTop}px`,
+                "--origin-left": `${zoomedImage.originLeft}px`,
+                "--origin-width": `${zoomedImage.originWidth}px`,
+                "--origin-height": `${zoomedImage.originHeight}px`,
+                "--target-top": `${zoomedImage.targetTop}px`,
+                "--target-left": `${zoomedImage.targetLeft}px`,
+                "--target-width": `${zoomedImage.targetWidth}px`,
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="image-lightbox-close"
+                onClick={closeZoomedImage}
+                aria-label="Close image preview"
+              >
+                x
+              </button>
+              <img className="image-lightbox-image" src={zoomedImage.src} alt="Full size preview" />
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* HOW IT WORKS */}
@@ -560,6 +655,7 @@ function Home() {
 
       {/* FOOTER */}
       <div className="footer">© 2026 APIS - AI Powered Interview System</div>
+
     </>
   );
 }
