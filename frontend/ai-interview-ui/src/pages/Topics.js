@@ -389,7 +389,7 @@ function Topics() {
           {isHrCategory
             ? "Build Your HR Interview"
             : !selectedMode
-              ? "Available Topics"
+              ? "Available interviews"
               : selectedMode === "role"
                 ? "Choose Job Roles"
                 : "Choose Languages"}
