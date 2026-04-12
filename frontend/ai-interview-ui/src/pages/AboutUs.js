@@ -346,10 +346,6 @@ function AboutUs() {
           </div>
 
         </div>
-
-        <footer className="about-lab-footer">
-          <span>© 2026 INTERVIEWR - AI Powered Interview System</span>
-        </footer>
       </div>
     </>
   );

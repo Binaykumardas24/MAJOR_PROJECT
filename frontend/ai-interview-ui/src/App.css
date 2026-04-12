@@ -3749,7 +3749,9 @@ button {
 .mock-page {
   background: linear-gradient(180deg, #f7f3ff, #f1ecff);
   min-height: 100vh;
-  padding-bottom: 80px;
+  display: flex;
+
+  flex-direction: column;
   overflow-x: hidden;
 }
 
@@ -6368,9 +6370,11 @@ button {
 /* Footer */
 .page-footer {
   text-align: center;
-  margin-top: 60px;
+  margin-top: auto;
   padding: 18px;
-  font-size: 13px;
+  font-size: 13px;
+
+  width: 100%;
   color: #666;
 }
 

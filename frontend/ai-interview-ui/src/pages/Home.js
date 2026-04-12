@@ -653,9 +653,6 @@ function Home() {
         </div>
       </div>
 
-      {/* FOOTER */}
-      <div className="footer">© 2026 INTERVIEWR - AI Powered Interview System</div>
-
     </>
   );
 }

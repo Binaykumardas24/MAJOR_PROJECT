@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 
 /* MAIN PAGES */
 import Home from "./pages/Home";
@@ -32,6 +33,8 @@ const ROUTE_EXIT_TRANSITION_MS = 280;
 const isHomeRoute = (pathname) => pathname === "/";
 const usesMainNavbar = (pathname) =>
   ["/", "/about", "/dashboard", "/resume-analyzer", "/resume-analyzer/results"].includes(pathname);
+const usesFooter = (pathname) =>
+  ["/", "/dashboard", "/about"].includes(pathname);
 
 function ScrollRevealManager() {
   const location = useLocation();
@@ -288,6 +291,7 @@ function AnimatedRoutes() {
     ? "route-transition route-transition--home"
     : `route-transition route-transition--${transitionStage}`;
   const showMainNavbar = usesMainNavbar(displayLocation.pathname);
+  const showFooter = usesFooter(displayLocation.pathname);
 
   return (
     <>
@@ -300,6 +304,7 @@ function AnimatedRoutes() {
           <AppRoutes routeLocation={displayLocation} />
         </div>
       </div>
+      {showFooter ? <Footer /> : null}
     </>
   );
 }
