@@ -26,7 +26,7 @@ function TechnicalInterview() {
             className="mock-btn"
             onClick={() => navigate("/topics/technical")}
           >
-            Start Technical Mock Interview →
+            Start Technical Mock Interview
           </button>
         </div>
 
@@ -46,78 +46,41 @@ function TechnicalInterview() {
           <button
             className="small-start-btn"
             onClick={() => navigate("/topics/technical")}
+            style={{ display: "none" }}
           >
-            Start Technical Mock Interview →
+            Start Technical Mock Interview
           </button>
         </div>
 
         {/* ✅ CONSOLIDATED CONTENT SECTIONS */}
         <div style={{ marginTop: '30px' }}>
-          {/* What you'll learn box */}
-          <div style={{
-            position: 'relative',
-            padding: '24px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '12px',
-            border: '1px solid #e9ecef',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
-            marginBottom: '32px'
-          }}>
-            {/* Header design top left */}
-            <div style={{
-              position: 'absolute',
-              top: '-18px',
-              left: '24px',
-              background: 'linear-gradient(90deg, #FFD600 0%, #FF9800 100%)',
-              borderRadius: '24px 24px 0 0',
-              color: '#fff',
-              fontWeight: 'bold',
-              fontSize: '20px',
-              padding: '10px 32px 8px 32px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              zIndex: 2
-            }}>
-              What you'll learn
+          <div className="aptitude-info-grid">
+            <div className="aptitude-info-card aptitude-info-card-learn">
+              <div className="aptitude-info-card-tag aptitude-info-card-tag-warm">What you'll learn</div>
+              <ul>
+                <li>Core computer science fundamentals and theoretical knowledge</li>
+                <li>Problem-solving techniques and efficient coding practices</li>
+                <li>Designing scalable and robust software systems</li>
+              </ul>
             </div>
-            <ul style={{ marginTop: '32px', marginBottom: 0, paddingLeft: '24px', color: '#333', fontSize: '17px', boxShadow: 'none' }}>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Core computer science fundamentals and theoretical knowledge</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Problem-solving techniques and efficient coding practices</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Designing scalable and robust software systems</li>
-            </ul>
+
+            <div className="aptitude-info-card aptitude-info-card-types">
+              <div className="aptitude-info-card-tag aptitude-info-card-tag-strong">Question types</div>
+              <ul>
+                <li>DBMS queries, OS concepts, Network protocols, OOPS principles, Data structures basics</li>
+                <li>Array/string algorithms, Tree/graph problems, Dynamic programming, Sorting/searching algorithms</li>
+                <li>Designing large-scale applications, Database schema design, API architecture, Caching strategies, Load balancing</li>
+              </ul>
+            </div>
           </div>
 
-          {/* Question types box */}
-          <div style={{
-            position: 'relative',
-            padding: '24px',
-            backgroundColor: '#f0f8ff',
-            borderRadius: '12px',
-            border: '1px solid #b3d9ff',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
-          }}>
-            {/* Header design top left */}
-            <div style={{
-              position: 'absolute',
-              top: '-18px',
-              left: '24px',
-              background: 'linear-gradient(90deg, #D32F2F 0%, #B71C1C 100%)',
-              borderRadius: '24px 24px 0 0',
-              color: '#fff',
-              fontWeight: 'bold',
-              fontSize: '20px',
-              padding: '10px 32px 8px 32px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              zIndex: 2
-            }}>
-              Question types
-            </div>
-            <ul style={{ marginTop: '32px', marginBottom: 0, paddingLeft: '24px', color: '#333', fontSize: '17px', boxShadow: 'none' }}>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>DBMS queries, OS concepts, Network protocols, OOPS principles, Data structures basics</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Array/string algorithms, Tree/graph problems, Dynamic programming, Sorting/searching algorithms</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Designing large-scale applications, Database schema design, API architecture, Caching strategies, Load balancing</li>
-            </ul>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '22px' }}>
+            <button
+              className="small-start-btn"
+              onClick={() => navigate("/topics/technical")}
+            >
+              Start Technical Mock Interview
+            </button>
           </div>
         </div>
       </div>

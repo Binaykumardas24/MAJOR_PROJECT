@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
 import MiniNavbar from "../components/MiniNavbar";
+import resumeHero from "../assets/resume_based_interview.png";
 
 function ResumeInterview() {
   const navigate = useNavigate();
@@ -111,6 +112,7 @@ function ResumeInterview() {
             that align with your experience and targets.
           </p>
         </div>
+        <img src={resumeHero} alt="Resume Interview" className="mock-hero-img" />
       </div>
 
       {/* form card */}

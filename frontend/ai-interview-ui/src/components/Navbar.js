@@ -111,7 +111,10 @@ function Navbar() {
 
             <div className="navbar-brand">
               <div className="navbar-brand-title">
-                <h2>INTERVIEWR</h2>
+                <h2>
+                  INTERVIEW
+                  <span className="brand-r">R</span>
+                </h2>
                 <span className="navbar-brand-pipe">|</span>
                 <span className="navbar-brand-sub">
                   <span>AI Powered</span>

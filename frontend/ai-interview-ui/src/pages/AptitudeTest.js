@@ -3,6 +3,7 @@ import axios from "axios";
 import { Info } from "lucide-react";
 import "../App.css";
 import MiniNavbar from "../components/MiniNavbar";
+import aptitudeHero from "../assets/Analytics.png";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
 const CODING_HISTORY_KEY = "apis-coding-question-history";
@@ -646,16 +647,16 @@ function AptitudeTest() {
         <div>
           <h1>Aptitude Test</h1>
           <p>Choose a section, decide how many questions you want to practice, and take a timed round with instant summary review.</p>
-          <button className="mock-btn" onClick={handleOpenSetup} disabled={startingTest}>Start Aptitude Test -&gt;</button>
+          <button className="mock-btn" onClick={handleOpenSetup} disabled={startingTest}>Start Aptitude Test</button>
         </div>
+        <img src={aptitudeHero} alt="Aptitude Test" className="mock-hero-img" />
       </div>
 
       {isOverviewStage && (
         <>
           <div className="mock-section">
-            <div className="section-header-row">
-              <h2 className="section-title">Practice Modes</h2>
-              <button className="small-start-btn" onClick={handleOpenSetup} disabled={startingTest}>Start Aptitude -&gt;</button>
+            <div className="section-header-row" style={{ justifyContent: "flex-end", display: "none" }}>
+              <button className="small-start-btn" onClick={handleOpenSetup} disabled={startingTest}>Start Aptitude</button>
             </div>
             <div className="aptitude-info-grid">
               <div className="aptitude-info-card aptitude-info-card-learn">
@@ -674,6 +675,9 @@ function AptitudeTest() {
                   <li>The editor starts with a starter template, not a solved answer</li>
                 </ul>
               </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '22px' }}>
+              <button className="small-start-btn" onClick={handleOpenSetup} disabled={startingTest}>Start Aptitude</button>
             </div>
           </div>
 

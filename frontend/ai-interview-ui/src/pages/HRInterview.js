@@ -24,7 +24,7 @@ function HRInterview() {
             className="mock-btn"
             onClick={() => navigate("/topics/hr")}
           >
-            Start HR/Behavioral Mock Interview →
+            Start HR/Behavioral Mock Interview
           </button>
         </div>
         <img src={hrImg} alt="HR Interview" className="mock-hero-img" />
@@ -32,90 +32,49 @@ function HRInterview() {
 
       {/* ✅ PRACTICE MODES HEADER ROW */}
       <div className="mock-section">
-        <div className="section-header-row">
-          <h2 className="section-title">Practice Modes</h2>
-
+        <div className="section-header-row" style={{ justifyContent: "flex-end", display: "none" }}>
           <button
             className="small-start-btn"
             onClick={() => navigate("/topics/hr")}
           >
-            Start HR Mock Interview →
+            Start HR Mock Interview
           </button>
         </div>
 
         {/* ✅ CONSOLIDATED CONTENT SECTIONS */}
         <div style={{ marginTop: '30px' }}>
-          {/* What you'll learn box */}
-          <div style={{
-            position: 'relative',
-            padding: '24px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '12px',
-            border: '1px solid #e9ecef',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
-            marginBottom: '32px'
-          }}>
-            {/* Header design top left */}
-            <div style={{
-              position: 'absolute',
-              top: '-18px',
-              left: '24px',
-              background: 'linear-gradient(90deg, #FFD600 0%, #FF9800 100%)',
-              borderRadius: '24px 24px 0 0',
-              color: '#fff',
-              fontWeight: 'bold',
-              fontSize: '20px',
-              padding: '10px 32px 8px 32px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              zIndex: 2
-            }}>
-              What you'll learn
+          <div className="aptitude-info-grid">
+            <div className="aptitude-info-card aptitude-info-card-learn">
+              <div className="aptitude-info-card-tag aptitude-info-card-tag-warm">What you'll learn</div>
+              <ul>
+                <li>Basic communication skills and interview etiquette</li>
+                <li>Structured answering techniques and company research</li>
+                <li>Negotiation skills and handling difficult questions</li>
+                <li>Effective communication and conflict resolution in teams</li>
+                <li>STAR method (Situation, Task, Action, Result) for structured answers</li>
+                <li>Managing stress and maintaining composure under pressure</li>
+              </ul>
             </div>
-            <ul style={{ marginTop: '32px', marginBottom: 0, paddingLeft: '24px', color: '#333', fontSize: '17px', boxShadow: 'none' }}>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Basic communication skills and interview etiquette</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Structured answering techniques and company research</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Negotiation skills and handling difficult questions</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Effective communication and conflict resolution in teams</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>STAR method (Situation, Task, Action, Result) for structured answers</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Managing stress and maintaining composure under pressure</li>
-            </ul>
-          </div>
 
-          {/* Question types box */}
-          <div style={{
-            position: 'relative',
-            padding: '24px',
-            backgroundColor: '#f0f8ff',
-            borderRadius: '12px',
-            border: '1px solid #b3d9ff',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
-          }}>
-            {/* Header design top left */}
-            <div style={{
-              position: 'absolute',
-              top: '-18px',
-              left: '24px',
-              background: 'linear-gradient(90deg, #D32F2F 0%, #B71C1C 100%)',
-              borderRadius: '24px 24px 0 0',
-              color: '#fff',
-              fontWeight: 'bold',
-              fontSize: '20px',
-              padding: '10px 32px 8px 32px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              zIndex: 2
-            }}>
-              Question types
+            <div className="aptitude-info-card aptitude-info-card-types">
+              <div className="aptitude-info-card-tag aptitude-info-card-tag-strong">Question types</div>
+              <ul>
+                <li>Tell me about yourself, Why this company, Basic strengths/weaknesses</li>
+                <li>Why this role, Company culture fit, Career goals and aspirations</li>
+                <li>Salary expectations, Previous failures, Handling criticism, Exit scenarios</li>
+                <li>Teamwork examples, Resolving conflicts, Working with difficult colleagues</li>
+                <li>Leadership experiences, Problem-solving scenarios, Achievement examples</li>
+                <li>High-pressure situations, Meeting deadlines, Crisis management, Work-life balance</li>
+              </ul>
             </div>
-            <ul style={{ marginTop: '32px', marginBottom: 0, paddingLeft: '24px', color: '#333', fontSize: '17px', boxShadow: 'none' }}>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Tell me about yourself, Why this company, Basic strengths/weaknesses</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Why this role, Company culture fit, Career goals and aspirations</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Salary expectations, Previous failures, Handling criticism, Exit scenarios</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Teamwork examples, Resolving conflicts, Working with difficult colleagues</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Leadership experiences, Problem-solving scenarios, Achievement examples</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>High-pressure situations, Meeting deadlines, Crisis management, Work-life balance</li>
-            </ul>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '22px' }}>
+            <button
+              className="small-start-btn"
+              onClick={() => navigate("/topics/hr")}
+            >
+              Start HR Mock Interview
+            </button>
           </div>
         </div>
       </div>

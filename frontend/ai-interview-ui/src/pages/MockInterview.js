@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
 import MiniNavbar from "../components/MiniNavbar";
+import mockHero from "../assets/mock_interview.png";
 
 function MockInterview() {
   const navigate = useNavigate();
@@ -110,83 +111,39 @@ function MockInterview() {
           <p>
             Practice real interview questions and get instant feedback. Simulate HR, technical, and behavioral rounds.
           </p>
-          <button className="mock-btn" onClick={() => setShowSetup(true)}>Start Mock Interview →</button>
+          <button className="mock-btn" onClick={() => setShowSetup(true)}>Start Mock Interview</button>
         </div>
+        <img src={mockHero} alt="Mock Interview" className="mock-hero-img" />
       </div>
 
       {/* PRACTICE MODES HEADER ROW */}
       <div className="mock-section">
-        <div className="section-header-row">
-          <h2 className="section-title">Practice Modes</h2>
-          <button className="small-start-btn" onClick={() => setShowSetup(true)}>Start Mock →</button>
+        <div className="section-header-row" style={{ justifyContent: "flex-end", display: "none" }}>
+          <button className="small-start-btn" onClick={() => setShowSetup(true)}>Start Mock</button>
         </div>
         {/* ✅ CONSOLIDATED CONTENT SECTIONS */}
         <div style={{ marginTop: '30px' }}>
-          {/* What you'll learn box */}
-          <div style={{
-            position: 'relative',
-            padding: '24px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '12px',
-            border: '1px solid #e9ecef',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
-            marginBottom: '32px'
-          }}>
-            {/* Header design top left */}
-            <div style={{
-              position: 'absolute',
-              top: '-18px',
-              left: '24px',
-              background: 'linear-gradient(90deg, #FFD600 0%, #FF9800 100%)',
-              borderRadius: '24px 24px 0 0',
-              color: '#fff',
-              fontWeight: 'bold',
-              fontSize: '20px',
-              padding: '10px 32px 8px 32px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              zIndex: 2
-            }}>
-              What you'll learn
+          <div className="aptitude-info-grid">
+            <div className="aptitude-info-card aptitude-info-card-learn">
+              <div className="aptitude-info-card-tag aptitude-info-card-tag-warm">What you'll learn</div>
+              <ul>
+                <li>Basic interview communication and response structure</li>
+                <li>Industry-specific knowledge and role expectations</li>
+                <li>Complete interview flow and performance evaluation</li>
+              </ul>
             </div>
-            <ul style={{ marginTop: '32px', marginBottom: 0, paddingLeft: '24px', color: '#333', fontSize: '17px', boxShadow: 'none' }}>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Basic interview communication and response structure</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Industry-specific knowledge and role expectations</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Complete interview flow and performance evaluation</li>
-            </ul>
-          </div>
 
-          {/* Question types box */}
-          <div style={{
-            position: 'relative',
-            padding: '24px',
-            backgroundColor: '#f0f8ff',
-            borderRadius: '12px',
-            border: '1px solid #b3d9ff',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
-          }}>
-            {/* Header design top left */}
-            <div style={{
-              position: 'absolute',
-              top: '-18px',
-              left: '24px',
-              background: 'linear-gradient(90deg, #D32F2F 0%, #B71C1C 100%)',
-              borderRadius: '24px 24px 0 0',
-              color: '#fff',
-              fontWeight: 'bold',
-              fontSize: '20px',
-              padding: '10px 32px 8px 32px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              zIndex: 2
-            }}>
-              Question types
+            <div className="aptitude-info-card aptitude-info-card-types">
+              <div className="aptitude-info-card-tag aptitude-info-card-tag-strong">Question types</div>
+              <ul>
+                <li>Tell me about yourself, Strengths/weaknesses, Why this company, Career goals</li>
+                <li>Technical skills assessment, Project experience, Role-specific scenarios, Industry trends</li>
+                <li>Multi-round simulation covering HR, technical, and behavioral questions with comprehensive feedback</li>
+              </ul>
             </div>
-            <ul style={{ marginTop: '32px', marginBottom: 0, paddingLeft: '24px', color: '#333', fontSize: '17px', boxShadow: 'none' }}>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Tell me about yourself, Strengths/weaknesses, Why this company, Career goals</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Technical skills assessment, Project experience, Role-specific scenarios, Industry trends</li>
-              <li style={{ boxShadow: 'none', background: 'none', transform: 'none' }}>Multi-round simulation covering HR, technical, and behavioral questions with comprehensive feedback</li>
-            </ul>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '22px' }}>
+            <button className="small-start-btn" onClick={() => setShowSetup(true)}>Start Mock</button>
           </div>
         </div>
       </div>

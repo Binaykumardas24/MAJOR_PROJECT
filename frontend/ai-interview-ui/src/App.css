@@ -16537,6 +16537,13 @@ button {
 .category-topnav .mini-navbar-brand-title h2 {
   font-size: var(--brand-title-size);
   line-height: 1;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 0 rgba(15, 23, 42, 0.24),
+    0 3px 0 rgba(15, 23, 42, 0.28),
+    0 4px 0 rgba(15, 23, 42, 0.32),
+    0 7px 14px rgba(15, 23, 42, 0.4),
+    0 12px 22px rgba(2, 6, 23, 0.35);
 }
 
 .navbar .navbar-brand-title .navbar-brand-pipe,
@@ -16547,6 +16554,22 @@ button {
   display: inline-flex;
   align-items: center;
 }
+
+.navbar .navbar-brand-title .brand-r,
+.category-topnav .navbar-brand-title .brand-r,
+.category-topnav .mini-navbar-brand-title .brand-r {
+  color: #f97316;
+  font-size: inherit !important;
+  line-height: inherit;
+  display: inline;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 0 rgba(124, 45, 18, 0.3),
+    0 3px 0 rgba(124, 45, 18, 0.34),
+    0 5px 10px rgba(124, 45, 18, 0.45),
+    0 8px 16px rgba(124, 45, 18, 0.38);
+}
+
 
 .navbar .navbar-brand-title .navbar-brand-sub,
 .category-topnav .navbar-brand-title .navbar-brand-sub,
