@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "../App.css";
 import MiniNavbar from "../components/MiniNavbar";
 import mockHero from "../assets/mock.png";
+import mistakeImg from "../assets/mistake.png";
 
 function MockInterview() {
   const navigate = useNavigate();
@@ -523,61 +524,91 @@ function MockInterview() {
             </button>
 
             {confirmedSelection && (
-              <div style={{ marginTop: 14, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: '100%', maxWidth: 520, background: '#eff6ff', borderRadius: 10, padding: '10px 12px', border: '1px solid #bfdbfe', color: '#1e3a8a' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontWeight: 700, marginBottom: 4 }}>Selected role:</div>
-                      <div style={{ marginLeft: 6, color: '#0f172a' }}>{confirmedSelection.role}</div>
-                      <div style={{ fontWeight: 700, marginTop: 8 }}>Experience:</div>
-                      <div style={{ marginLeft: 6, color: '#0f172a' }}>{confirmedSelection.experience}</div>
-                      <div style={{ fontWeight: 700, marginTop: 8 }}>Config Mode:</div>
-                      <div style={{ marginLeft: 6, color: '#0f172a' }}>{confirmedSelection.configMode === 'question' ? 'Question Mode' : 'Time Mode'}</div>
-                      {confirmedSelection.configMode === 'question' && (
-                        <>
-                          <div style={{ fontWeight: 700, marginTop: 8 }}>Questions:</div>
-                          <div style={{ marginLeft: 6, color: '#0f172a' }}>
-                            {confirmedSelection.questionCount}{confirmedSelection.customQuestionCount ? ` (custom: ${confirmedSelection.customQuestionCount})` : ''}
-                          </div>
-                        </>
-                      )}
-                      {confirmedSelection.configMode === 'time' && (
-                        <>
-                          <div style={{ fontWeight: 700, marginTop: 8 }}>Time Mode Interval:</div>
-                          <div style={{ marginLeft: 6, color: '#0f172a' }}>{confirmedSelection.timeModeInterval || 'n/a'} minutes</div>
-                        </>
-                      )}
-                      <div style={{ fontWeight: 700, marginTop: 8 }}>Practice Type:</div>
-                      <div style={{ marginLeft: 6, color: '#0f172a' }}>{confirmedSelection.practiceType === 'practice' ? 'Practice Mode (no timer)' : 'Interview Mode (timer ON)'}</div>
-                      {confirmedSelection.practiceType === 'interview' && (
-                        <>
-                          <div style={{ fontWeight: 700, marginTop: 8 }}>Interview Timer:</div>
-                          <div style={{ marginLeft: 6, color: '#0f172a' }}>{confirmedSelection.interviewModeTime || 'n/a'} minutes</div>
-                        </>
-                      )}
+              <div style={{ marginTop: 14, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <div style={{ width: "100%", maxWidth: 600, background: "#eff6ff", borderRadius: 10, padding: "20px", border: "1px solid #bfdbfe", color: "#1e3a8a" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {/* Selected Role */}
+                    <div style={{ background: "#fff", borderRadius: 8, padding: 12, border: "1px solid #bfdbfe", textAlign: "center" }}>
+                      <div style={{ fontWeight: 700, marginBottom: 8, fontSize: "0.85rem", color: "#1e3a8a" }}>Selected role:</div>
+                      <div style={{ color: "#0f172a", fontSize: "0.95rem" }}>
+                        {confirmedSelection.role}
+                      </div>
                     </div>
+
+                    {/* Experience */}
+                    <div style={{ background: "#fff", borderRadius: 8, padding: 12, border: "1px solid #bfdbfe", textAlign: "center" }}>
+                      <div style={{ fontWeight: 700, marginBottom: 8, fontSize: "0.85rem", color: "#1e3a8a" }}>Experience</div>
+                      <div style={{ color: "#0f172a", fontSize: "0.95rem" }}>
+                        {confirmedSelection.experience}
+                      </div>
+                    </div>
+
+                    {/* Config Mode */}
+                    <div style={{ background: "#fff", borderRadius: 8, padding: 12, border: "1px solid #bfdbfe", textAlign: "center" }}>
+                      <div style={{ fontWeight: 700, marginBottom: 8, fontSize: "0.85rem", color: "#1e3a8a" }}>Config Mode</div>
+                      <div style={{ color: "#0f172a", fontSize: "0.95rem" }}>
+                        {confirmedSelection.configMode === "question" ? "Question Mode" : "Time Mode"}
+                      </div>
+                    </div>
+
+                    {/* Practice Type */}
+                    <div style={{ background: "#fff", borderRadius: 8, padding: 12, border: "1px solid #bfdbfe", textAlign: "center" }}>
+                      <div style={{ fontWeight: 700, marginBottom: 8, fontSize: "0.85rem", color: "#1e3a8a" }}>Practice Type</div>
+                      <div style={{ color: "#0f172a", fontSize: "0.95rem" }}>
+                        {confirmedSelection.practiceType === "practice" ? "Practice Mode" : "Interview Mode"}
+                      </div>
+                    </div>
+
+                    {/* Questions or Time Interval */}
+                    {confirmedSelection.configMode === "question" ? (
+                      <div style={{ background: "#fff", borderRadius: 8, padding: 12, border: "1px solid #bfdbfe", textAlign: "center" }}>
+                        <div style={{ fontWeight: 700, marginBottom: 8, fontSize: "0.85rem", color: "#1e3a8a" }}>Questions</div>
+                        <div style={{ color: "#0f172a", fontSize: "0.95rem" }}>
+                          {confirmedSelection.questionCount}
+                          {confirmedSelection.customQuestionCount
+                            ? ` (custom: ${confirmedSelection.customQuestionCount})`
+                            : ""}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ background: "#fff", borderRadius: 8, padding: 12, border: "1px solid #bfdbfe", textAlign: "center" }}>
+                        <div style={{ fontWeight: 700, marginBottom: 8, fontSize: "0.85rem", color: "#1e3a8a" }}>Time Mode Interval</div>
+                        <div style={{ color: "#0f172a", fontSize: "0.95rem" }}>
+                          {confirmedSelection.timeModeInterval || "n/a"} minutes
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interview Timer */}
+                    {confirmedSelection.practiceType === "interview" && (
+                      <div style={{ background: "#fff", borderRadius: 8, padding: 12, border: "1px solid #bfdbfe", textAlign: "center" }}>
+                        <div style={{ fontWeight: 700, marginBottom: 8, fontSize: "0.85rem", color: "#1e3a8a" }}>Interview Timer</div>
+                        <div style={{ color: "#0f172a", fontSize: "0.95rem" }}>
+                          {confirmedSelection.interviewModeTime || "n/a"} minutes
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
                     <button
                       className="topic-action-btn secondary"
-                      style={{
-                        borderRadius: '999px',
-                        padding: '8px 14px',
-                        fontWeight: 700,
-                        background: '#ec4899',
-                        color: '#fff',
-                        boxShadow: '0 8px 15px rgba(236,72,153,0.25)',
-                        alignSelf: 'center',
-                        marginLeft: '16px'
-                      }}
                       onClick={clearSelection}
+                      style={{
+                        borderRadius: 999,
+                        padding: "8px 14px",
+                        fontWeight: 700,
+                        background: "#ec4899",
+                        color: "#fff",
+                        boxShadow: "0 8px 15px rgba(236,72,153,0.25)",
+                      }}
                     >
                       Reset Selections
                     </button>
                   </div>
                 </div>
 
-                <button
-                  className="start-interview-confirm"
-                  onClick={() =>
+                <button className="start-interview-confirm" onClick={() =>
                     navigate("/instructions", {
                       state: {
                         category: "mock",
@@ -592,8 +623,7 @@ function MockInterview() {
                         timeModeInterval: confirmedSelection.timeModeInterval,
                       }
                     })
-                  }
-                >
+                  }>
                   Proceed to Instructions
                 </button>
               </div>
@@ -612,6 +642,11 @@ function MockInterview() {
             <li>Missing key skills or achievements</li>
           </ul>
         </div>
+        <img
+          src={mistakeImg}
+          alt="Common Mistakes Illustration"
+          className="mistake-img"
+        />
       </div>
 
       {/* FOOTER */}

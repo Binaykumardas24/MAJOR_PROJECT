@@ -345,46 +345,46 @@ function Permissions() {
       {/* No mini navbar on this page per request */}
       {/* overall status banner (only when every permission granted) */}
       {allPermissionsGranted && (
-        <div style={{ background: "#e6ffed", padding: 20, textAlign: "center", color: "#065f46", fontWeight: 600 }}>
+        <div style={{ background: "#e6ffed", padding: 12, textAlign: "center", color: "#065f46", fontWeight: 600, fontSize: 12 }}>
           ✅ Success: Your system is compatible. Please make sure to use the same System & Internet settings for your assessment/interview.
         </div>
       )}
 
       {/* main two‑column section */}
-      <div style={{ display: "flex", flexWrap: "wrap", padding: 30, gap: 30, maxWidth: 1380, margin: "0 auto", width: "100%" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", padding: 12, gap: 12, maxWidth: 1380, margin: "0 auto", width: "100%", alignItems: "stretch" }}>
         {/* left: system check list */}
-        <div style={{ flex: "1 1 420px", maxWidth: 700 }}>
-          <div style={{ background: "white", padding: 20, borderRadius: 8, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
-            <h2 style={{ marginTop: 0 }}>System Check + Verification Photo</h2>
+        <div style={{ flex: "1 1 300px", maxWidth: 600, overflowY: "auto", overflowX: "hidden" }}>
+          <div style={{ background: "white", padding: 12, borderRadius: 6, boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}>
+            <h2 style={{ marginTop: 0, fontSize: 16, marginBottom: 12, fontWeight: 700 }}>System Check + Verification Photo</h2>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {/* camera */}
               <div
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, gap: 6 }}
               >
                 <span className="perm-item" onClick={requestCamera} style={{cursor:'pointer'}}><CameraIcon className="perm-icon" /> Camera</span>
                 <button
                   className={`mock-btn grant-btn ${permissions.camera ? "granted" : deniedPerm.camera ? "denied" : ""}`}
                   disabled={permissions.camera || loadingPerm.camera}
                   onClick={requestCamera}
-                  style={{ cursor: loadingPerm.camera ? "wait" : "pointer" }}
+                  style={{ cursor: loadingPerm.camera ? "wait" : "pointer", padding: "8px 14px", fontSize: 11 }}
                 >
-                  {loadingPerm.camera ? <span className="spinner" /> : permissions.camera ? "✓ Granted" : deniedPerm.camera ? "✕ Denied" : "Grant"}
+                  {loadingPerm.camera ? <span className="spinner" /> : permissions.camera ? "✓" : deniedPerm.camera ? "✕" : "Grant"}
                 </button>
               </div>
 
               {/* microphone */}
               <div
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, gap: 6 }}
               >
                 <span className="perm-item" onClick={requestMicrophone} style={{cursor:'pointer'}}><MicIcon className="perm-icon" /> Microphone</span>
                 <button
                   className={`mock-btn grant-btn ${permissions.microphone ? "granted" : deniedPerm.microphone ? "denied" : ""}`}
                   disabled={permissions.microphone || loadingPerm.microphone}
                   onClick={requestMicrophone}
-                  style={{ cursor: loadingPerm.microphone ? "wait" : "pointer" }}
+                  style={{ cursor: loadingPerm.microphone ? "wait" : "pointer", padding: "8px 14px", fontSize: 11 }}
                 >
-                  {loadingPerm.microphone ? <span className="spinner" /> : permissions.microphone ? "✓ Granted" : deniedPerm.microphone ? "✕ Denied" : "Grant"}
+                  {loadingPerm.microphone ? <span className="spinner" /> : permissions.microphone ? "✓" : deniedPerm.microphone ? "✕" : "Grant"}
                 </button>
               </div>
               {permissions.microphone && (
@@ -409,33 +409,33 @@ function Permissions() {
               )}
 
               {/* browser */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, gap: 6 }}>
                 <span>🌐 Browser</span>
                 <span style={{ color: "#10b981", fontWeight: 700 }}>✓</span>
               </div>
 
               {/* network */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, gap: 6 }}>
                 <span>Your Network is Compatible</span>
                 <span style={{ color: "#10b981", fontWeight: 700 }}>✓</span>
               </div>
 
               {/* location */}
               <div
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, gap: 6 }}
               >
                 <span className="perm-item"><LocationIcon className="perm-icon" />Location</span>
                 <button
                   className={`mock-btn grant-btn ${permissions.location ? "granted" : deniedPerm.location ? "denied" : ""}`}
                   disabled={permissions.location || loadingPerm.location}
                   onClick={requestLocation}
-                  style={{ cursor: loadingPerm.location ? "wait" : "pointer" }}
+                  style={{ cursor: loadingPerm.location ? "wait" : "pointer", padding: "8px 14px", fontSize: 11 }}
                 >
-                  {loadingPerm.location ? <span className="spinner" /> : permissions.location ? "✓ Granted" : deniedPerm.location ? "✕ Denied" : "Grant"}
+                  {loadingPerm.location ? <span className="spinner" /> : permissions.location ? "✓" : deniedPerm.location ? "✕" : "Grant"}
                 </button>
               </div>
               {locationInfo && (
-                <div style={{ marginTop: 8, fontSize: 13, color: "#444" }}>
+                <div style={{ marginTop: 6, fontSize: 10, color: "#444", lineHeight: 1.3 }}>
                   <div>Lat: {locationInfo.lat}, Lng: {locationInfo.lng}</div>
                   <div>Time: {locationInfo.time}</div>
                   {locationInfo.address && (
@@ -458,34 +458,32 @@ function Permissions() {
         </div>
 
         {/* right: video feed and info panels */}
-        <div style={{ flex: "1 1 420px", display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ background: "white", padding: 10, borderRadius: 8, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
+        <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", overflowX: "hidden" }}>
+          <div style={{ background: "white", padding: 6, borderRadius: 6, boxShadow: "0 2px 6px rgba(0,0,0,0.08)", flex: "0 0 300px", minHeight: 0 }}>
             <video
               ref={videoRef}
-              style={{ width: "100%", borderRadius: 6 }}
+              style={{ width: "100%", borderRadius: 4, display: "block", height: "100%" }}
               autoPlay
               playsInline
               muted
             />
           </div>
 
-          <div style={{ background: "white", padding: 20, borderRadius: 8, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
-            <h4>System Info</h4>
-            <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+          <div style={{ background: "white", padding: 12, borderRadius: 6, boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}>
+            <h4 style={{ marginTop: 0, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>System Info</h4>
+            <div style={{ fontSize: 11, lineHeight: 1.3 }}>
               <div><strong>OS :</strong> {sysInfo.os}</div>
               <div><strong>Dimension :</strong> {sysInfo.dimension}</div>
               <div><strong>Browser :</strong> {sysInfo.browser}</div>
-              <div><strong>Screen :</strong> {sysInfo.screen}</div>
               <div><strong>Cookies :</strong> {sysInfo.cookies}</div>
-              <div><strong>Popup :</strong> {sysInfo.popup}</div>
               <div><strong>Location :</strong> {sysInfo.location}</div>
               <div><strong>Time :</strong> {sysInfo.time}</div>
             </div>
           </div>
 
-          <div style={{ background: "white", padding: 20, borderRadius: 8, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
-            <h4>Internet Bandwidth</h4>
-            <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+          <div style={{ background: "white", padding: 12, borderRadius: 6, boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}>
+            <h4 style={{ marginTop: 0, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>Internet Bandwidth</h4>
+            <div style={{ fontSize: 11, lineHeight: 1.3 }}>
               <div><strong>Download speed :</strong> {sysInfo.download}</div>
               <div><strong>Upload speed :</strong> {sysInfo.upload}</div>
             </div>
@@ -494,10 +492,10 @@ function Permissions() {
       </div>
 
       {/* footer buttons */}
-      <div style={{ marginTop: 24, textAlign: "center", display: "flex", justifyContent: "center", gap: 12 }}>
-        <button className="go-back-btn" onClick={goHome}>🏠 Home</button>
-        <button className="go-back-btn" onClick={goBack}>← Back</button>
-        <button className="mock-btn footer-btn" onClick={goProceed} disabled={!allPermissionsGranted}>
+      <div style={{ marginTop: 0, textAlign: "center", display: "flex", justifyContent: "center", gap: 10, paddingBottom: 12 }}>
+        <button className="go-back-btn" onClick={goHome} style={{ padding: "8px 16px", fontSize: 12 }}>🏠 Home</button>
+        <button className="go-back-btn" onClick={goBack} style={{ padding: "8px 16px", fontSize: 12 }}>← Back</button>
+        <button className="mock-btn footer-btn" onClick={goProceed} disabled={!allPermissionsGranted} style={{ padding: "8px 16px", fontSize: 12 }}>
           Proceed
         </button>
       </div>

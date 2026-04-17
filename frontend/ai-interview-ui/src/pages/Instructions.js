@@ -1,10 +1,44 @@
-import React from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
+import logo from "../assets/Website Logo.png";
 
 function Instructions() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [user] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch {
+      return null;
+    }
+  });
+
+  const getUserDisplayName = (user) => {
+    if (!user) return "User";
+    if (user.first_name && user.last_name)
+      return `${user.first_name} ${user.last_name}`;
+    if (user.first_name) return user.first_name;
+    if (user.last_name) return user.last_name;
+    if (user.email) return user.email.split("@")[0];
+    return "User";
+  };
+
+  const userDisplayName = getUserDisplayName(user);
+  const userInitial = userDisplayName ? userDisplayName[0].toUpperCase() : "U";
+  
+  const [agreedToAll, setAgreedToAll] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+
+  const handleContinue = () => {
+    if (!agreedToAll) {
+      setAlertMessage("Please agree to all instructions before proceeding.");
+      setTimeout(() => setAlertMessage(""), 3000);
+      return;
+    }
+    navigate("/permissions", { state: location.state || {} });
+  };
 
   const instructions = [
     { icon: "🤫", title: "Quiet Environment", desc: "Ensure you're in a quiet place with minimal background noise." },
@@ -15,89 +49,146 @@ function Instructions() {
     { icon: "💡", title: "Think Before Speaking", desc: "Take 5-10 seconds to organize your thoughts before answering." }
   ];
 
+  const checklistItems = [
+    { icon: "🎙️", text: "Camera and microphone are working properly" },
+    { icon: "🖼️", text: "Background is clean and professional" },
+    { icon: "☀️", text: "You have good lighting on your face" },
+    { icon: "📵", text: "Phone is on silent or away from desk" },
+    { icon: "💻", text: "All other applications are closed" },
+    { icon: "💧", text: "You have water nearby (optional but helpful)" },
+    { icon: "🔓", text: "Ready for permissions buttons (camera, microphone, location)" }
+  ];
+
   return (
-    <div className="mock-page reveal">
-      <div className="category-topnav">
-        <h3>INTERVIEWR</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link to="/" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Home</Link>
-          <Link to="/hr-interview" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/hr-interview' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>HR/Behavioral</Link>
-          <Link to="/technical-interview" style={{ padding: '8px 12px', borderRadius: '4px', transition: 'all 0.3s', ...(location.pathname === '/technical-interview' ? { backgroundColor: 'rgba(255,255,255,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', transform: 'scale(1.05)' } : {}) }}>Technical</Link>
-          <Link to="/hr-interview">HR</Link>
-          <Link to="/mock-interview">Mock</Link>
-          <Link to="/aptitude-test">Aptitude</Link>
-        </div>
-      </div>
-
-      {/* HERO */}
-      <div className="mock-hero violet-hero">
-        <div style={{ maxWidth: 720 }}>
-          <h1>Interview Instructions</h1>
-          <p>
-            Follow these guidelines to ensure a smooth interview experience.
-            Proper setup and focus will help you perform your best.
-          </p>
-        </div>
-      </div>
-
-      {/* INSTRUCTIONS SECTION */}
-      <div className="mock-section utility-page-section">
-        <div className="section-title">Before You Start</div>
-
-        <div className="mock-grid">
-          {instructions.map((item, index) => (
-            <div key={index} className="mock-card">
-              <div className="card-top">
-                <div>
-                  <h4>{item.title}</h4>
-                  <p style={{ marginTop: 6, fontSize: 14 }}>{item.desc}</p>
+    <div className="instructions-page-new">
+      {/* NAVBAR - Same as home but without nav links */}
+      <nav className="navbar">
+        <div className="navbar-inner">
+          <div className="navbar-left">
+            <div className="navbar-home-link" style={{ cursor: 'default' }}>
+              <img
+                src={logo}
+                alt="INTERVIEWR Logo"
+                className="navbar-logo"
+              />
+              <div className="navbar-brand">
+                <div className="navbar-brand-title">
+                  <h2>
+                    INTERVIEW
+                    <span className="brand-r">R</span>
+                  </h2>
+                  <span className="navbar-brand-pipe">|</span>
+                  <span className="navbar-brand-sub">
+                    <span>AI Powered</span>
+                    <span>Interview System</span>
+                  </span>
                 </div>
-                <div className="icon-circle">{item.icon}</div>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* CHECKLIST SECTION */}
-      <div className="utility-page-band" style={{ margin: "40px auto" }}>
-        <div className="mistake-box" style={{ gap: 18 }}>
-          <div>
-            <h3 style={{ margin: 0 }}>✅ Pre-Interview Checklist</h3>
-            <ul style={{ marginTop: 12, paddingLeft: 20 }}>
-              <li>Camera and microphone are connected and working</li>
-              <li>Background is clean and professional</li>
-              <li>You have good lighting on your face</li>
-              <li>Phone is on silent or away from desk</li>
-              <li>All other applications are closed</li>
-              <li>You have water nearby (optional but helpful)</li>
-              <li>On the next page you will see separate buttons for camera, microphone, screen and location – grant each and a preview/date-time will appear.</li>
-            </ul>
+          {/* Empty center - no nav links */}
+          <div className="navbar-center"></div>
+
+          {/* Profile only - not clickable */}
+          <div className="nav-right navbar-right">
+            {user && (
+              <div className="profile-area">
+                <div
+                  className="profile-card"
+                  style={{ cursor: 'default' }}
+                >
+                  <div className="profile-icon">
+                    {user?.profile_image ? (
+                      <img src={user.profile_image} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      userInitial
+                    )}
+                  </div>
+
+                  <div className="profile-user-details">
+                    <span className="profile-user-name">{userDisplayName}</span>
+                    <span className="profile-user-email">{user?.email}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* ACTION BUTTONS */}
-      <div style={{ textAlign: "center", padding: "40px", gap: 12, display: "flex", justifyContent: "center" }}>
-        <button
-          className="mock-btn"
-          style={{ background: "#5b21b6" }}
-          onClick={() => navigate("/permissions", { state: location.state || {} })}
-        >
-          Continue to Next Step →
-        </button>
-        <button
-          className="mock-btn"
-          style={{ background: "rgba(255,255,255,0.15)", color: "#1e1e2f", border: "1px solid rgba(229,231,235,0.8)" }}
-          onClick={() => navigate(-1)}
-        >
-          ← Go Back
-        </button>
-      </div>
+      {/* PAGE CONTENT - NEW UI */}
+      <div className="instructions-content-new">
+        <div className="instructions-wrapper">
+          {/* Header Section */}
+          <div className="instructions-header-new">
+            <h1>Interview Instructions</h1>
+            <p>Please review these guidelines before starting your interview</p>
+          </div>
 
-      {/* FOOTER */}
-      <div className="bottom-footer">
-        Questions? Review our FAQs or contact support
+          {/* Instructions Grid */}
+          <div className="instructions-grid-new">
+            {instructions.map((item, index) => (
+              <div key={index} className="instruction-item-new">
+                <div className="instruction-icon-new">{item.icon}</div>
+                <h3>{item.title}</h3>
+                <p>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Pre-Interview Checklist as Instruction Cards */}
+          <div className="checklist-section-wrapper">
+            <div className="instructions-grid-new">
+              {checklistItems.map((item, idx) => (
+                <div key={idx} className="instruction-item-new">
+                  <div className="instruction-icon-new">{item.icon}</div>
+                  <p>{item.text}</p>
+                </div>
+              ))}
+            </div>
+
+          </div>
+
+          {/* Agree to All Checkbox */}
+          <div className="checklist-agree-all">
+            <label htmlFor="agreeToAll">Agree to all</label>
+            <input 
+              type="checkbox" 
+              id="agreeToAll" 
+              checked={agreedToAll}
+              onChange={(e) => setAgreedToAll(e.target.checked)}
+            />
+          </div>
+
+          {/* Custom Alert */}
+          {alertMessage && (
+            <div className="custom-alert-message">
+              {alertMessage}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="instructions-buttons-new">
+            <button
+              className="btn-continue-new"
+              onClick={handleContinue}
+            >
+              Continue to Next Step →
+            </button>
+            <button
+              className="btn-back-new"
+              onClick={() => navigate(-1)}
+            >
+              ← Go Back
+            </button>
+          </div>
+
+          {/* Footer */}
+          <div className="instructions-footer-new">
+            Questions? Review our FAQs or contact support
+          </div>
+        </div>
       </div>
     </div>
   );
